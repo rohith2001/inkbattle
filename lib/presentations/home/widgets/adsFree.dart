@@ -271,7 +271,7 @@ class _AdsFreePopupState extends State<AdsFreePopup> {
     if (_isProcessingPayment) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
+          SnackBar(
             content: Text(AppLocalizations.purchaseAlreadyInProgress),
             backgroundColor: Colors.orange,
           ),
@@ -284,7 +284,7 @@ class _AdsFreePopupState extends State<AdsFreePopup> {
     if (!Platform.isAndroid && !Platform.isIOS) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
+          SnackBar(
             content: Text(AppLocalizations.inAppPurchasesOnlySupported),
             backgroundColor: Colors.red,
           ),

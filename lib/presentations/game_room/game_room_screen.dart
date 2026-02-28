@@ -1384,7 +1384,7 @@ class _GameRoomScreenState extends State<GameRoomScreen>
       if (_serverSyncingRetryCount >= 3) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
+            SnackBar(
               content: Text(AppLocalizations.serverSyncingTryAgain),
               duration: Duration(seconds: 3),
             ),
@@ -1586,7 +1586,7 @@ class _GameRoomScreenState extends State<GameRoomScreen>
               Future.delayed(const Duration(milliseconds: 500), () {
                 if (mounted && _room?.status != 'playing') {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
+                    SnackBar(
                       content: Text(AppLocalizations.bothTeamsNeedPlayersExiting),
                       backgroundColor: Colors.orange,
                       duration: Duration(seconds: 2),
@@ -1678,7 +1678,7 @@ class _GameRoomScreenState extends State<GameRoomScreen>
         // Host removed a player
         if (isMe) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
+            SnackBar(
               content: Text(AppLocalizations.youWereRemovedByHost),
               backgroundColor: Colors.orange,
               duration: Duration(seconds: 2),
@@ -6553,21 +6553,21 @@ class _GameRoomScreenState extends State<GameRoomScreen>
                                 } else {
                                   if (!_areAllParticipantsReady() && _participants.length >= 2) {
                                     ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
+                                      SnackBar(
                                         content: Text(AppLocalizations.allPlayersMustTapReady),
                                         backgroundColor: Colors.orange,
                                       ),
                                     );
                                   } else if (selectedGameMode == 'team_vs_team' && !_hasEnoughPlayersForTeamMode()) {
                                     ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
+                                      SnackBar(
                                         content: Text(AppLocalizations.bothTeamsNeedPlayers),
                                         backgroundColor: Colors.orange,
                                       ),
                                     );
                                   } else {
                                     ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
+                                      SnackBar(
                                         content: Text(AppLocalizations.pleaseFillAllDetails),
                                       ),
                                     );
@@ -8461,7 +8461,7 @@ class _GameRoomScreenState extends State<GameRoomScreen>
       // Handle error silently or show a snackbar
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
+          SnackBar(
             content: Text(AppLocalizations.failedToSelectTeam),
             backgroundColor: Colors.red,
             duration: Duration(seconds: 2),
@@ -13186,7 +13186,7 @@ class _GameRoomScreenState extends State<GameRoomScreen>
           : () {
               if (!_isDrawer) {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
+                  SnackBar(
                     content: Text(AppLocalizations.onlyDrawerCanSend),
                     duration: Duration(seconds: 2),
                   ),

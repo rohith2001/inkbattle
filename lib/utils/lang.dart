@@ -5723,7 +5723,7 @@ class AppLocalizations {
       'purchase_successful_but_failed_to_add_coins': 'ਖਰੀਦ ਸਫਲ ਪਰ ਸਿੱਕੇ ਜੋੜਨ ਵਿਫਲ: ',
       'error_processing_purchase': 'ਖਰੀਦ ਪ੍ਰੋਸੈਸ ਕਰਨ ਵਿੱਚ ਗਲਤੀ: ',
       'purchase_already_in_progress': 'ਖਰੀਦ ਪਹਿਲਾਂ ਤੋਂ ਜਾਰੀ। ਕਿਰਪਾ ਕਰਕੇ ਇੰਤਜ਼ਾਰ ਕਰੋ...',
-      'in_app_purchases_only_supported': 'ਇਨ-ਐਪ ਖਰੀਦਾਂ ਸਿਰਫ਼ Android ਅਤੇ iOS ਡਿਵਾਈਸਾਂ 'ਤੇ ਸਹਾਇਕ।',
+      'in_app_purchases_only_supported': 'ਇਨ-ਐਪ ਖਰੀਦਾਂ ਸਿਰਫ਼ Android ਅਤੇ iOS ਡਿਵਾਈਸਾਂ \'ਤੇ ਸਹਾਇਕ।',
       'in_app_purchases_not_available': 'ਇਨ-ਐਪ ਖਰੀਦਾਂ ਉਪਲਬਧ ਨਹੀਂ। ਕਿਰਪਾ ਕਰਕੇ ਇਹ ਸੁਨਿਸ਼ਚਿਤ ਕਰੋ ਕਿ ਤੁਸੀਂ ਸਾਈਨ ਇਨ ਹੋ ',
       'failed_to_initiate_purchase': 'ਖਰੀਦ ਸ਼ੁਰੂ ਕਰਨ ਵਿਫਲ। ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼ ਕਰੋ ਜਾਂ ਸਮੱਸਿਆ ਬਣੀ ਰਹੇ ਤਾਂ ਸਹਾਇਤਾ ਨਾਲ ਸੰਪਰਕ ਕਰੋ। (',
       'leave_room': 'ਰੂਮ ਛੱਡੋ',

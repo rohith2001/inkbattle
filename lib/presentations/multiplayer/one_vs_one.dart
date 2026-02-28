@@ -71,7 +71,7 @@ class _OneVsOneScreenState extends State<OneVsOneScreen> {
         (roomResponse) async {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
+              SnackBar(
                 content:
                     Text('${AppLocalizations.successfullyJoinedRoomEntryCost}250 ${AppLocalizations.coins}'),
                 backgroundColor: Colors.green,

@@ -125,37 +125,39 @@ class TeamWinnerPopup extends StatelessWidget {
                       ),
 
                     // FIXED: Proper logic for 2 vs 3+ winners
-                    if (isTwoWinners) {
-                      // 2 winners: Show first and second
-                      if (second != null)
-                        _buildTeamWinnerAvatar(
-                          team: second,
-                          rank: 2,
-                          top: 80.h,
-                          left: 170.w,
-                          isTeamvTeam: isTeamvTeam,
-                        )
-                    } else {
-                      // 3+ winners: Show second and third
-                      if (second != null)
-                        _buildTeamWinnerAvatar(
-                          team: second,
-                          rank: 2,
-                          // Position for Rank 2 (Left, lower) in 3-winner mode
-                          top: 80.h,
-                          left: 30.w,
-                          isTeamvTeam: isTeamvTeam,
-                        ),
-                      if (third != null)
-                        _buildTeamWinnerAvatar(
-                          team: third,
-                          rank: 3,
-                          // Position for Rank 3 (Right, lowest) in 3-winner mode
-                          top: 100.h,
-                          left: 170.w,
-                          isTeamvTeam: isTeamvTeam,
-                        ),
-                    }
+                    ...(isTwoWinners
+                        ? [
+                            // 2 winners: Show first and second
+                            if (second != null)
+                              _buildTeamWinnerAvatar(
+                                team: second,
+                                rank: 2,
+                                top: 80.h,
+                                left: 170.w,
+                                isTeamvTeam: isTeamvTeam,
+                              ),
+                          ]
+                        : [
+                            // 3+ winners: Show second and third
+                            if (second != null)
+                              _buildTeamWinnerAvatar(
+                                team: second,
+                                rank: 2,
+                                // Position for Rank 2 (Left, lower) in 3-winner mode
+                                top: 80.h,
+                                left: 30.w,
+                                isTeamvTeam: isTeamvTeam,
+                              ),
+                            if (third != null)
+                              _buildTeamWinnerAvatar(
+                                team: third,
+                                rank: 3,
+                                // Position for Rank 3 (Right, lowest) in 3-winner mode
+                                top: 100.h,
+                                left: 170.w,
+                                isTeamvTeam: isTeamvTeam,
+                              ),
+                          ]),
                   ],
                 ),
               ),

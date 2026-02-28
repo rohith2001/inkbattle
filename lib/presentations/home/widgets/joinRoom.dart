@@ -122,7 +122,7 @@ class _JoinRoomPopupState extends State<JoinRoomPopup> {
   Future<void> _handleJoinRoom(String code) async {
     if (code.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        SnackBar(
           content: Text(AppLocalizations.pleaseEnterARoomCode),
           backgroundColor: Colors.orange,
         ),
