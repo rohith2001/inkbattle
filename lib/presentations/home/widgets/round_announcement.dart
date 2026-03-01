@@ -6,10 +6,14 @@ class RoundAnnouncementManager {
   final BuildContext context;
   final Function() onAllComplete;
 
-  OverlayEntry? overlay1;
-  OverlayEntry? overlay2;
-  OverlayEntry? overlay3;
+  /// Builders create a fresh OverlayEntry per sequence so we never re-insert a removed entry
+  /// (avoids lifecycle/mounted inconsistencies and stuck overlays after resume).
+  final OverlayEntry? Function()? overlay1Builder;
+  final OverlayEntry? Function()? overlay2Builder;
+  final OverlayEntry? Function()? overlay3Builder;
+
   Timer? _sequenceTimer;
+  Timer? _safetyTimer;
 
   // Track the visibility state using a list of entries for easy removal
   final List<OverlayEntry> _activeOverlays = [];
@@ -17,10 +21,9 @@ class RoundAnnouncementManager {
   RoundAnnouncementManager({
     required this.context,
     required this.onAllComplete,
-    required this.overlay1,
-    required this.overlay2,
-    required this.overlay3,
-
+    this.overlay1Builder,
+    this.overlay2Builder,
+    this.overlay3Builder,
   });
 
   /// When [showOverlay2Soon] is true (e.g. drawer earned points), show overlay2 (guess compliments) soon
@@ -31,13 +34,19 @@ class RoundAnnouncementManager {
     final firstDelayMs = showOverlay2Soon ? 400 : 2500;
 
     final overlay = Overlay.of(context);
-    if (isTimeUpVal && overlay1 != null) {
-      overlay.insert(overlay1!);
-      _activeOverlays.add(overlay1!);
+
+    // Capture the exact entry we insert so we remove by reference, not by list position (handles skipped overlay1, early clear, async races).
+    OverlayEntry? step1Entry;
+    if (isTimeUpVal && overlay1Builder != null) {
+      step1Entry = overlay1Builder!();
+      if (step1Entry != null) {
+        overlay.insert(step1Entry!);
+        _activeOverlays.add(step1Entry!);
+      }
     }
 
     // Safety: clear any stuck overlays after 8s so compliment never blocks (phase_change to interval will still come from server)
-    Timer(Duration(milliseconds: 8000), () {
+    _safetyTimer = Timer(Duration(milliseconds: 8000), () {
       if (_activeOverlays.isNotEmpty && context.mounted) {
         clearSequence();
       }
@@ -48,11 +57,15 @@ class RoundAnnouncementManager {
         clearSequence();
         return;
       }
-      if (isTimeUpVal) _removeOverlay(overlay1);
+      _removeOverlaySafe(step1Entry);
 
-      if (overlay2 != null) {
-        overlay.insert(overlay2!);
-        _activeOverlays.add(overlay2!);
+      OverlayEntry? step2Entry;
+      if (overlay2Builder != null) {
+        step2Entry = overlay2Builder!();
+        if (step2Entry != null) {
+          overlay.insert(step2Entry!);
+          _activeOverlays.add(step2Entry!);
+        }
       }
 
       _sequenceTimer = Timer(const Duration(milliseconds: 2500), () {
@@ -60,15 +73,19 @@ class RoundAnnouncementManager {
           clearSequence();
           return;
         }
-        _removeOverlay(overlay2);
+        _removeOverlaySafe(step2Entry);
 
-        if (overlay3 != null) {
-          overlay.insert(overlay3!);
-          _activeOverlays.add(overlay3!);
+        OverlayEntry? step3Entry;
+        if (overlay3Builder != null) {
+          step3Entry = overlay3Builder!();
+          if (step3Entry != null) {
+            overlay.insert(step3Entry!);
+            _activeOverlays.add(step3Entry!);
+          }
         }
 
         _sequenceTimer = Timer(const Duration(milliseconds: 2000), () {
-          _removeOverlay(overlay3);
+          _removeOverlaySafe(step3Entry);
           onAllComplete();
           clearSequence();
         });
@@ -76,27 +93,29 @@ class RoundAnnouncementManager {
     });
   }
 
-  // --- 3. CLEANUP ---
+  // --- CLEANUP ---
 
-  void _removeOverlay(OverlayEntry? entry) {
-    if (entry != null && entry.mounted) {
+  /// Remove a single entry (try/catch so already-removed or bad state does not throw).
+  void _removeOverlaySafe(OverlayEntry? entry) {
+    if (entry == null) return;
+    try {
       entry.remove();
-      _activeOverlays.remove(entry);
-    }
+    } catch (_) {}
+    _activeOverlays.remove(entry);
   }
 
   void clearSequence() {
     _sequenceTimer?.cancel();
     _sequenceTimer = null;
+    _safetyTimer?.cancel();
+    _safetyTimer = null;
 
-    // Remove all active overlays immediately
-    for (var entry in _activeOverlays) {
-      if (entry.mounted) {
+    // Remove all active overlays immediately; always try remove() to avoid stuck overlays (e.g. after resume when mounted can be stale)
+    for (var entry in List<OverlayEntry>.from(_activeOverlays)) {
+      try {
         entry.remove();
-      }
+      } catch (_) {}
     }
     _activeOverlays.clear();
-    // overlay1 = overlay2 = overlay3 = null;
-    print('Round announcement sequence cleared.');
   }
 }

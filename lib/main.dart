@@ -13,8 +13,9 @@ import 'constants/bloc_provider.dart';
 import 'package:inkbattle_frontend/utils/preferences/local_preferences.dart';
 import 'package:inkbattle_frontend/utils/routes/routes.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:inkbattle_frontend/config/environment.dart';
 import 'package:inkbattle_frontend/utils/lang.dart';
-import 'dart:developer';
+import 'package:inkbattle_frontend/services/native_log_service.dart';
 import 'package:inkbattle_frontend/services/notification_service.dart';
 
 final GlobalKey<ScaffoldMessengerState> snackbarKey =
@@ -31,14 +32,17 @@ void main() async {
   //   print("Warning: .env file not found, using default values");
   // }
 
-  // 1. Detect which environment file to load (Defaults to staging)
-  const String envFile = String.fromEnvironment('ENV_FILE', defaultValue: '.env.staging');
-
-  try {
-    await dotenv.load(fileName: envFile);
-    print("Successfully loaded $envFile");
-  } catch (e) {
-    print("Warning: $envFile not found, using Environment class defaults");
+  // 1. Load .env so API_BASE_URL etc. are available. If file is missing, use defaults so we never throw NotInitializedError.
+  const String envFile = String.fromEnvironment('ENV_FILE', defaultValue: '.env');
+  await dotenv.load(
+    fileName: envFile,
+    isOptional: true,
+    mergeWith: Environment.envDefaults,
+  );
+  if (dotenv.env['API_BASE_URL'] == null || dotenv.env['API_BASE_URL']!.isEmpty) {
+    NativeLogService.log('Env: $envFile not found or empty, using defaults', tag: 'main', level: 'debug');
+  } else {
+    NativeLogService.log('Env: loaded $envFile', tag: 'main', level: 'debug');
   }
 
   await Firebase.initializeApp(
@@ -177,27 +181,29 @@ class _MyAppState extends State<MyApp> {
 }
 
 class MyBlocObserver extends BlocObserver {
+  static const String _logTag = 'BlocObserver';
+
   @override
   void onCreate(BlocBase bloc) {
-    log("Created: $bloc");
+    NativeLogService.log('Created: $bloc', tag: _logTag, level: 'debug');
     super.onCreate(bloc);
   }
 
   @override
   void onChange(BlocBase bloc, Change change) {
-    log("Change in $bloc: $change");
+    NativeLogService.log('Change in $bloc: $change', tag: _logTag, level: 'debug');
     super.onChange(bloc, change);
   }
 
   @override
   void onTransition(Bloc bloc, Transition transition) {
-    log("Change in $bloc: $transition");
+    NativeLogService.log('Change in $bloc: $transition', tag: _logTag, level: 'debug');
     super.onTransition(bloc, transition);
   }
 
   @override
   void onClose(BlocBase bloc) {
-    log("Closed: $bloc");
+    NativeLogService.log('Closed: $bloc', tag: _logTag, level: 'debug');
     super.onClose(bloc);
   }
 }

@@ -9,10 +9,9 @@ import 'package:inkbattle_frontend/constants/app_images.dart';
 
 class GoogleAuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
-  // final GoogleSignIn _googleSignIn = GoogleSignIn(
-  //   serverClientId: Environment.googleWebClientId,
-  // );
-  final GoogleSignIn _googleSignIn = GoogleSignIn();
+  final GoogleSignIn _googleSignIn = GoogleSignIn(
+    serverClientId: Environment.googleWebClientId,
+  );
   final UserRepository _userRepository = UserRepository();
 
   // Get current user

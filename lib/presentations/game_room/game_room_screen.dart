@@ -30,8 +30,6 @@ import 'package:inkbattle_frontend/services/socket_service.dart';
 import 'package:inkbattle_frontend/widgets/persistent_banner_ad_widget.dart';
 import 'package:inkbattle_frontend/widgets/blue_background_scaffold.dart';
 import 'package:inkbattle_frontend/widgets/country_picker_widget.dart';
-import 'package:inkbattle_frontend/presentations/room_preferences/widgets/selection_bottom_sheet.dart';
-import 'package:inkbattle_frontend/presentations/room_preferences/widgets/room_category_picker_sheet.dart';
 import 'package:inkbattle_frontend/presentations/drawing_board/presentation/widgets/drawing_canvas.dart';
 import 'package:inkbattle_frontend/presentations/drawing_board/domain/models/stroke.dart'
     as fdb;
@@ -329,31 +327,31 @@ class _GameRoomScreenState extends State<GameRoomScreen>
   bool _showOptionMenu = false;
   static const String _drawerMessagePrefix = 'drawer_message:';
 
-  List<_DrawerMessageOption> get _drawerMessageOptions =>
-      <_DrawerMessageOption>[
+  final List<_DrawerMessageOption> _drawerMessageOptions =
+      const <_DrawerMessageOption>[
     _DrawerMessageOption(
       key: 'correct',
-      label: AppLocalizations.correct,
+      label: 'Correct',
       iconPath: AppImages.messageCorrect,
-      accentColor: const Color(0xFF3EE07F),
+      accentColor: Color(0xFF3EE07F),
     ),
     _DrawerMessageOption(
       key: 'wrong',
-      label: AppLocalizations.wrong,
+      label: 'Wrong',
       iconPath: AppImages.messageWrong,
-      accentColor: const Color(0xFFE53935),
+      accentColor: Color(0xFFE53935),
     ),
     _DrawerMessageOption(
       key: 'break_word',
-      label: AppLocalizations.breakWord,
+      label: 'Break Word',
       iconPath: AppImages.messageBreakWord,
-      accentColor: const Color(0xFF57C6FF),
+      accentColor: Color(0xFF57C6FF),
     ),
     _DrawerMessageOption(
       key: 'alternate',
-      label: AppLocalizations.alternate,
+      label: 'Alternate',
       iconPath: AppImages.messageAlternate,
-      accentColor: const Color(0xFFFFC857),
+      accentColor: Color(0xFFFFC857),
     ),
   ];
   final universalBorder =
@@ -528,9 +526,9 @@ class _GameRoomScreenState extends State<GameRoomScreen>
     _announcementManager = RoundAnnouncementManager(
       context: context,
       onAllComplete: () {},
-      overlay1: _buildDrawerTimeUpWidget(),
-      overlay2: _buildDrawerScoreWidget(),
-      overlay3: _buildComplimentWidget(),
+      overlay1Builder: () => _buildDrawerTimeUpWidget(),
+      overlay2Builder: () => _buildDrawerScoreWidget(),
+      overlay3Builder: () => _buildComplimentWidget(),
     );
     _preloadVideos();
 
@@ -929,6 +927,7 @@ class _GameRoomScreenState extends State<GameRoomScreen>
 
   Future<void> _handleAppResumed() async {
     if (!mounted) return;
+
     _clearUiAndMediaOnResume();
 
     // Don't check room status if game has ended and we're showing ad/leaderboard
@@ -983,14 +982,12 @@ class _GameRoomScreenState extends State<GameRoomScreen>
       roomResult.fold(
       _handleGetRoomDetailsFailure,
       (room) {
-
         _applyRoomStateAfterResume(room);
         // Clear any stuck round overlays (all phases including reveal) so resume doesn't show past state
         if (room.status == 'playing') {
           _announcementManager.clearSequence();
           if (!_isDrawer) _cancelWordSelectionCountdown();
         }
-
         if (room.status == 'closed' || room.status == 'inactive') {
           Future.delayed(const Duration(milliseconds: 300), () {
             if (mounted) _showAdAndExit();
@@ -1437,10 +1434,8 @@ class _GameRoomScreenState extends State<GameRoomScreen>
                       drawerId.toString() == _currentUser!.id.toString());
               // Sync current phase and remaining from server; use roundPhaseEndTime so we stay in sync even if message is delayed.
               final roundPhase = room['roundPhase'] as String?;
-
               final roomMap = room is Map<String, dynamic> ? room : null;
               final roundPhaseEndTimeMs = roomMap?['roundPhaseEndTime'];
-
               if (roundPhase != null) _currentPhase = roundPhase;
               // Keep _phaseMaxTime as phase duration (for progress bar). Use server roundDuration if present.
               final roundDuration = roomMap?['roundDuration'];
@@ -1484,7 +1479,6 @@ class _GameRoomScreenState extends State<GameRoomScreen>
           }
           _connectionState = GameConnectionState.ready; // safe to interact after room_joined applied
         });
-
         // When syncing to a playing room, clear any stuck compliment overlay (all phases including reveal, e.g. after resume)
         if (room != null && room['status'] == 'playing') {
           _announcementManager.clearSequence();
@@ -1500,7 +1494,6 @@ class _GameRoomScreenState extends State<GameRoomScreen>
               _updateProgressAnimation(progress, immediate: true);
             });
           }
-
         }
         // If room is already playing (e.g. host started while we were in ad, or after resume), sync canvas and phase
         if (room != null && room['status'] == 'playing' && _room?.code != null) {
@@ -2546,7 +2539,6 @@ class _GameRoomScreenState extends State<GameRoomScreen>
       // When we have a local countdown from phaseEndTime, ignore server remaining so we stay in sync.
       if (_phaseCountdownTimer != null) return;
 
-
       final int rawRemaining = (data['remainingTime'] is int)
           ? (data['remainingTime'] as int)
           : (data['remainingTime'] as num?)?.round() ?? 0;
@@ -2979,7 +2971,6 @@ class _GameRoomScreenState extends State<GameRoomScreen>
           _startProgressSmoothTimer(endMs);
         }
         _strokes.value = history;
-
         _lastSequenceFromSnapshot = lastSeq >= 0 ? lastSeq : -1;
         // Tell server resync is done so we receive live drawing_data again
         _socketService.emitResyncDone();
@@ -2990,7 +2981,6 @@ class _GameRoomScreenState extends State<GameRoomScreen>
             _updateProgressAnimation(progress, immediate: true);
           });
         }
-
       }
     });
     _socketService.onCanvasClear((data) {
@@ -3043,7 +3033,7 @@ class _GameRoomScreenState extends State<GameRoomScreen>
     _socketService.onGameEndedInsufficientPlayers((data) {
       if (mounted) {
         _stopGameTimers();
-        final message = data['message'] ?? AppLocalizations.notEnoughPlayersExitingRoom;
+        final message = data['message'] ?? 'Not enough players. Exiting room.';
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(message),
@@ -3061,7 +3051,7 @@ class _GameRoomScreenState extends State<GameRoomScreen>
       if (mounted) {
         _stopGameTimers();
         final message = data['message'] ??
-            AppLocalizations.exitedInactive90Seconds;
+            'Exited as you were not active for more than 90 seconds.';
         _showCloseAdAndNavigate(
           snackbarThenGoHome: message,
         );
@@ -3093,7 +3083,7 @@ class _GameRoomScreenState extends State<GameRoomScreen>
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(
-                  '${AppLocalizations.roomClosed}${data['message'] ?? AppLocalizations.noActiveParticipants}'),
+                  'Room closed: ${data['message'] ?? 'No active participants'}'),
               backgroundColor: Colors.orange,
             ),
           );
@@ -3109,7 +3099,7 @@ class _GameRoomScreenState extends State<GameRoomScreen>
     _socketService.socket?.on('error', (data) {
       
       if (mounted) {
-        final message = data['message'] ?? AppLocalizations.unknownError;
+        final message = data['message'] ?? 'Unknown error';
         final details = data['details'] ?? '';
 
         // Suppress "room_not_found" errors during resume - they're often false positives
@@ -3126,60 +3116,60 @@ class _GameRoomScreenState extends State<GameRoomScreen>
         String errorMessage = '';
         switch (message) {
           case 'only_owner_can_start':
-            errorMessage = AppLocalizations.onlyHostCanStartGame;
+            errorMessage = 'Only the host can start the game';
             break;
           case 'not_enough_players':
-            errorMessage = AppLocalizations.needAtLeast2PlayersToStart;
+            errorMessage = 'Need at least 2 players to start';
             break;
           case 'insufficient_coins':
             errorMessage =
-                details.isNotEmpty ? details : AppLocalizations.insufficientCoinsToStart;
+                details.isNotEmpty ? details : 'Insufficient coins to start';
             break;
           case 'both_teams_need_players':
             errorMessage = details.isNotEmpty
                 ? details
-                : '${AppLocalizations.bothTeamsNeedPlayers} to start.';
+                : 'Both teams need at least 2 players to start.';
             break;
           case 'not_all_ready':
             errorMessage = details.isNotEmpty
                 ? details
-                : AppLocalizations.allPlayersMustTapReadyBeforeHost;
+                : 'All players must tap Ready before the host can start.';
             break;
           case 'only_owner_can_remove':
-            errorMessage = AppLocalizations.onlyHostCanRemovePlayers;
+            errorMessage = 'Only the host can remove players.';
             break;
           case 'cannot_remove_during_game':
-            errorMessage = AppLocalizations.cannotRemovePlayersDuringGame;
+            errorMessage = 'Cannot remove players during the game.';
             break;
           case 'not_team_mode':
             errorMessage = details.isNotEmpty
                 ? details
-                : AppLocalizations.teamSelectionOnlyInTeamMode;
+                : 'Team selection is only available in team vs team mode. Please change the game mode first.';
             break;
           case 'game_already_started':
-            errorMessage = AppLocalizations.gameAlreadyStarted;
+            errorMessage = 'Game has already started';
             break;
           case 'not_authenticated':
-            errorMessage = AppLocalizations.authenticationErrorReconnect;
+            errorMessage = 'Authentication error. Please reconnect.';
             break;
           case 'you_were_replaced':
             errorMessage = details.toString().isNotEmpty
                 ? details.toString()
-                : AppLocalizations.replacedDueToInactivity;
+                : 'Due to inactivity, someone replaced you in this room.';
             break;
           case 'room_full':
             errorMessage = details.toString().isNotEmpty
                 ? details.toString()
-                : AppLocalizations.roomFullMaxPlayers;
+                : 'Room is full. Max players reached.';
             break;
           case 'you_are_banned':
-            errorMessage = AppLocalizations.youAreBannedFromRoom;
+            errorMessage = 'You are banned from this room.';
             break;
           case 'room_not_found':
-            errorMessage = AppLocalizations.roomNoLongerExistsLeaving;
+            errorMessage = 'Room no longer exists. Leaving.';
             break;
           default:
-            errorMessage = '${AppLocalizations.error}: $message';
+            errorMessage = 'Error: $message';
         }
         if (mounted) {
           snackbarKey.currentState!.showSnackBar(
@@ -3683,6 +3673,7 @@ class _GameRoomScreenState extends State<GameRoomScreen>
                       builder: (BuildContext exitCtx) {
                         return ExitPopUp(
                           text: "Do you really want to leave the room?",
+                          imagePath: AppImages.inactiveexit,
                           onExit: () {
                             Navigator.of(exitCtx).pop();
                             Navigator.of(dialogContext).pop();
@@ -3793,6 +3784,7 @@ class _GameRoomScreenState extends State<GameRoomScreen>
                   builder: (BuildContext exitCtx) {
                     return ExitPopUp(
                       text: "Do you really want to leave the room?",
+                      imagePath: AppImages.inactiveexit,
                       onExit: () {
                         Navigator.of(exitCtx).pop();
                         Navigator.of(dialogContext).pop();
@@ -4629,9 +4621,11 @@ class _GameRoomScreenState extends State<GameRoomScreen>
   Widget _buildGameScreen() {
     final bool isKeyboardVisible = MediaQuery.of(context).viewInsets.bottom > 0;
 
-    // If drawer, show fullscreen drawing board (role guard: only when myId == drawerId and we've been marked drawer e.g. by word_options)
+    // If drawer, show fullscreen drawing board (role guard: only when myId == drawerId and we've been marked drawer e.g. by word_options).
+    // Hide during resume so guesser never sees drawer UI from stale state; drawer gets it back after _isResuming clears.
     if (_amIDrawer &&
         _isDrawer &&
+        !_isResuming &&
         !_waitingForPlayers &&
         _room?.status == 'playing' &&
         _currentWord != null) {
@@ -4657,7 +4651,6 @@ class _GameRoomScreenState extends State<GameRoomScreen>
               child: Column(
                 children: [
                   _buildGameTopBar(),
-                  _buildGameCenterStrip(),
                   SizedBox(height: 5.h),
                   Padding(
                     padding: EdgeInsets.symmetric(horizontal: 12.w),
@@ -4991,13 +4984,13 @@ class _GameRoomScreenState extends State<GameRoomScreen>
                 !_shouldShowNextDrawerOverlay )
               _buildLeaderboardOverlay(),
 
-            if (_amIDrawer && _isDrawer) ...[
+            if (_amIDrawer && _isDrawer && !_isResuming) ...[
               _buildOptionIcon(),
               _buildDrawingTools(),
             ],
 
             // Show chosen word for drawer at bottom left (role guard: only when myId == drawerId)
-            if (_amIDrawer && _currentWord != null && _currentPhase == 'drawing')
+            if (_amIDrawer && !_isResuming && _currentWord != null && _currentPhase == 'drawing')
               Positioned(
                 bottom: 80.h,
                 left: 16.w,
@@ -5343,14 +5336,14 @@ class _GameRoomScreenState extends State<GameRoomScreen>
             TeamScoreBar(
                 maxScore: _room?.pointsTarget ?? 250,
                 barColor: Colors.blue,
-                label: AppLocalizations.teamA,
+                label: 'A',
                 labelBgColor: Colors.blue,
                 score: blueScore),
           SizedBox(height: 12.h),
           if (selectedGameMode == "team_vs_team")
             TeamScoreBar(
                 barColor: Colors.orange,
-                label: AppLocalizations.teamB,
+                label: 'B',
                 maxScore: _room?.pointsTarget ?? 250,
                 labelBgColor: Colors.orange,
                 score: orangeScore),
@@ -5823,6 +5816,7 @@ class _GameRoomScreenState extends State<GameRoomScreen>
       builder: (BuildContext context) {
         return ExitPopUp(
           text: "Do you really want to leave the room?",
+          imagePath: AppImages.inactiveexit,
           onExit: () {
             // This method handles leaving the room and navigating home
             _leaveRoom();
@@ -5867,197 +5861,166 @@ class _GameRoomScreenState extends State<GameRoomScreen>
                 padding: EdgeInsets.symmetric(horizontal: 12.w),
                 child: Column(
                   children: [
-                    // Settings dropdowns - Same layout as multiplayer: Rows with Expanded, equal width, consistent padding
-                    Padding(
-                      padding: EdgeInsets.symmetric(
-                          horizontal: isTablet ? 12.0 : 4.w),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          // Row 1: Language + Script (or placeholder)
-                          Row(
-                            children: [
-                              Expanded(
-                                child: _buildLobbyFilterPill(
-                                  hint: 'Word Theme',
-                                  value: selectedLanguage,
-                                  items: languages,
-                                  icon: Icons.language,
-                                  iconColor: Colors.lightBlueAccent,
-                                  isTablet: isTablet,
-                                  onChanged: isOwner
-                                      ? (v) {
-                                          setState(() {
-                                            selectedLanguage = v;
-                                            if (_isEnglishLanguage(v)) {
-                                              selectedScript = 'english';
-                                            } else {
-                                              if (selectedScript == null ||
-                                                  selectedScript == 'english') {
-                                                selectedScript = 'default';
-                                              }
-                                            }
-                                          });
-                                          _updateSettings();
-                                        }
-                                      : null,
-                                  getDisplayValue: _getLocalizedDisplayValue,
-                                ),
-                              ),
-                              SizedBox(width: isTablet ? 16.0 : 8.w),
-                              Expanded(
-                                child: !_isEnglishLanguage(selectedLanguage)
-                                    ? _buildLobbyFilterPill(
-                                        hint: 'Default',
-                                        value: selectedScript,
-                                        items: scripts,
-                                        icon: Icons.text_fields,
-                                        iconColor: Colors.deepPurpleAccent,
-                                        isTablet: isTablet,
-                                        onChanged: isOwner
-                                            ? (v) {
-                                                setState(() =>
-                                                    selectedScript = v);
-                                                _updateSettings();
-                                              }
-                                            : null,
-                                        getDisplayValue: _getLocalizedDisplayValue,
-                                      )
-                                    : _buildLobbyFilterPill(
-                                        hint: 'Word Script',
-                                        value: 'Default',
-                                        items: const <String>[
-                                          'Word Script: English (auto)'
-                                        ],
-                                        icon: Icons.text_fields,
-                                        iconColor: Colors.deepPurpleAccent,
-                                        isTablet: isTablet,
-                                        onChanged: null,
-                                        getDisplayValue: _getLocalizedDisplayValue,
-                                      ),
-                              ),
-                            ],
-                          ),
-                          SizedBox(height: isTablet ? 16.0 : 10.h),
-                          // Row 2: Country + Points
-                          Row(
-                            children: [
-                              Expanded(
-                                child: IgnorePointer(
-                                  ignoring: !isOwner,
-                                  child: CountryPickerWidget(
-                                    selectedCountryCode: selectedCountry,
-                                    onCountrySelected: isOwner
-                                        ? (countryCode) {
-                                            setState(() =>
-                                                selectedCountry = countryCode);
-                                            _updateSettings();
+                    // Settings dropdowns - Flexible to take available space
+                    LayoutBuilder(
+                      builder: (context, constraints) {
+                        final double controlWidth =
+                            (constraints.maxWidth - 10.w) / 2;
+                        return Wrap(
+                          alignment: WrapAlignment.center,
+                          spacing: 10.w,
+                          runSpacing: 10.w,
+                          children: [
+                            _buildGradientDropdown(
+                              width: controlWidth,
+                              hint: 'Word Theme',
+                              value: selectedLanguage,
+                              items: languages,
+                              icon: Icons.language,
+                              isTablet: isTablet,
+                              onChanged: isOwner
+                                  ? (v) {
+                                      setState(() {
+                                        selectedLanguage = v;
+                                        // Apply word_script logic: If language is English, auto-set script to 'english'
+                                        if (_isEnglishLanguage(v)) {
+                                          selectedScript = 'english';
+                                        } else {
+                                          // For non-English languages, default to 'default' if not already set or if switching from English
+                                          if (selectedScript == null ||
+                                              selectedScript == 'english') {
+                                            selectedScript = 'default';
                                           }
-                                        : (_) {},
-                                    hintText: AppLocalizations.country,
-                                    icon: Icons.flag,
-                                    height: isTablet ? 65.0 : 45.h,
-                                    iconColor: Colors.lightGreenAccent,
-                                    isTablet: isTablet,
-                                  ),
-                                ),
+                                        }
+                                      });
+                                      _updateSettings();
+                                    }
+                                  : null,
+                            ),
+                            // Hide script dropdown if language is English (word_script must be 'english')
+                            if (!_isEnglishLanguage(selectedLanguage))
+                              _buildGradientDropdown(
+                                width: controlWidth,
+                                hint: 'Default',
+                                value: selectedScript,
+                                items: scripts,
+                                icon: Icons.text_fields,
+                                isTablet: isTablet,
+                                onChanged: isOwner
+                                    ? (v) {
+                                        setState(() => selectedScript = v);
+                                        _updateSettings();
+                                      }
+                                    : null,
                               ),
-                              SizedBox(width: isTablet ? 16.0 : 8.w),
-                              Expanded(
-                                child: _buildLobbyFilterPill(
-                                  hint: 'Points',
-                                  value: (selectedPoints ?? 100).toString(),
-                                  items: pointsOptions
-                                      .map((e) => e.toString())
-                                      .toList(),
-                                  icon: Icons.star,
-                                  iconColor: Colors.amber,
-                                  isTablet: isTablet,
-                                  onChanged: isOwner
-                                      ? (v) {
-                                          setState(() => selectedPoints =
-                                              int.tryParse(v ?? '100'));
+                            // Show placeholder when language is English
+                            if (_isEnglishLanguage(selectedLanguage))
+                              _buildGradientDropdown(
+                                width: controlWidth,
+                                hint: 'Word Script',
+                                value: 'Default',
+                                items: const <String>[
+                                  'Word Script: English (auto)'
+                                ],
+                                icon: Icons.text_fields,
+                                isTablet: isTablet,
+                                onChanged: null,
+                              ),
+                            SizedBox(
+                              width: controlWidth,
+                              child: IgnorePointer(
+                                ignoring: !isOwner, // Only host can change country
+                                child: CountryPickerWidget(
+                                  selectedCountryCode: selectedCountry,
+                                  onCountrySelected: isOwner
+                                      ? (countryCode) {
+                                          setState(() => selectedCountry = countryCode);
                                           _updateSettings();
                                         }
-                                      : null,
-                                  getDisplayValue: _getLocalizedDisplayValue,
-                                ),
-                              ),
-                            ],
-                          ),
-                          SizedBox(height: isTablet ? 16.0 : 10.h),
-                          // Row 3: Category + Game Mode
-                          Row(
-                            children: [
-                              Expanded(
-                                child: _buildLobbyCategoryPill(
-                                  hint: 'Category',
-                                  selectedValues: selectedCategories,
-                                  items: categories,
-                                  icon: Icons.category,
-                                  iconColor: Colors.orange,
-                                  isTablet: isTablet,
-                                  onChanged: isOwner
-                                      ? (v) {
-                                          setState(() =>
-                                              selectedCategories = v);
-                                          _updateSettings();
-                                        }
-                                      : null,
-                                  getDisplayValue: _getLocalizedDisplayValue,
-                                ),
-                              ),
-                              SizedBox(width: isTablet ? 16.0 : 8.w),
-                              Expanded(
-                                child: _buildLobbyGameModePill(
-                                  isOwner: isOwner,
+                                      : (_) {},
+                                  hintText: 'Country',
+                                  icon: Icons.flag,
                                   isTablet: isTablet,
                                 ),
                               ),
-                            ],
-                          ),
-                          SizedBox(height: isTablet ? 16.0 : 10.h),
-                          // Row 4: Public only (centered, constrained width)
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              SizedBox(
-                                width: isTablet ? 300.0 : 200.w, // Approximate width to match other fields
-                                child: _buildPublicFieldUniform(
-                                    isTablet: isTablet, isOwner: isOwner),
-                              ),
-                            ],
-                          ),
-                          SizedBox(height: isTablet ? 16.0 : 10.h),
-                          // Row 5: Room Code | Player Count | Color selector (three items, same height/style)
-                          Row(
-                            children: [
-                              Expanded(
-                                child: _buildRoomCodeField(isTablet: isTablet),
-                              ),
-                              SizedBox(width: isTablet ? 16.0 : 8.w),
-                              Expanded(
-                                child: _buildPlayerCountField(
-                                    isOwner: isOwner, isTablet: isTablet),
-                              ),
-                              SizedBox(width: isTablet ? 16.0 : 8.w),
-                              Expanded(
-                                child: _buildColorSelectorField(
-                                    isOwner: isOwner, isTablet: isTablet),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
+                            ),
+                            _buildGradientDropdown(
+                              width: controlWidth,
+                              hint: 'Points',
+                              value: (selectedPoints ?? 100).toString(),
+                              items: pointsOptions
+                                  .map((e) => e.toString())
+                                  .toList(),
+                              icon: Icons.stars,
+                              isTablet: isTablet,
+                              onChanged: isOwner
+                                  ? (v) {
+                                      setState(() => selectedPoints =
+                                          int.tryParse(v ?? '100'));
+                                      _updateSettings();
+                                    }
+                                  : null,
+                            ),
+                            _buildMultiSelectCategoryDropdown(
+                              width: controlWidth,
+                              hint: 'Category',
+                              selectedValues: selectedCategories,
+                              items: categories,
+                              icon: Icons.category,
+                              isTablet: isTablet,
+                              onChanged: isOwner
+                                  ? (v) {
+                                      setState(() => selectedCategories = v);
+                                      _updateSettings();
+                                    }
+                                  : null,
+                            ),
+                            _buildGameModeGradientDropdown(
+                              width: controlWidth,
+                              isOwner: isOwner,
+                              isTablet: isTablet,
+                            ),
+                            // _buildCheckboxField(
+                            //   width: controlWidth,
+                            //   title: 'Voice',
+                            //   value: voiceEnabled,
+                            //   onChanged: isOwner
+                            //       ? (v) {
+                            //           (voiceEnabled = v ?? false);
+                            //           _updateSettings();
+                            //         }
+                            //       : null,
+                            // ),
+                            _buildToggleField(
+                              width: controlWidth,
+                              title: 'Public',
+                              value: isPublic,
+                              isTablet: isTablet,
+                              onChanged: isOwner
+                                  ? (v) {
+                                      setState(() => isPublic = v);
+                                      _updateSettings();
+                                    }
+                                  : (_) {},
+                            ),
+                          ],
+                        );
+                      },
                     ),
+                    // ),
 
-                    SizedBox(height: isTablet ? 16.0 : 10.h),
+                    SizedBox(height: 8.h),
 
-                    // Room card (players list) — ensure visible with min height
+                    // Room code, player count, team color select
+                    _buildCreateRoomTopStrip(isOwner),
+
+                    SizedBox(height: 8.h),
+
+                    // Players list panel - Flexible height with scrollable content
+                    // Flexible(
+                    //   flex: 2,
                     Expanded(
-                      child: ConstrainedBox(
-                        constraints: BoxConstraints(minHeight: 120.h),
-                        child: Container(
+                      child: Container(
                         width: double.infinity,
                         constraints: const BoxConstraints(),
                         decoration: BoxDecoration(
@@ -6287,7 +6250,7 @@ class _GameRoomScreenState extends State<GameRoomScreen>
                                                   userName,
                                                   style: GoogleFonts.lato(
                                                     color: Colors.white,
-                                                    fontSize: isTablet ? 18.0 : 15.sp,
+                                                    fontSize: 16.sp,
                                                     fontWeight: FontWeight.w500,
                                                   ),
                                                   overflow: TextOverflow.ellipsis, // Ellipse if name is too long
@@ -6309,7 +6272,7 @@ class _GameRoomScreenState extends State<GameRoomScreen>
                                                     AppLocalizations.host.toUpperCase(), // Using localized string
                                                     style: GoogleFonts.lato(
                                                       color: Colors.red,
-                                                      fontSize: isTablet ? 12.0 : 9.sp,
+                                                      fontSize: 10.sp,
                                                       fontWeight: FontWeight.bold,
                                                     ),
                                                   ),
@@ -6492,7 +6455,6 @@ class _GameRoomScreenState extends State<GameRoomScreen>
                             ),
                       ),
                     ),
-                    ),
 
                     SizedBox(height: 10.h),
 
@@ -6531,7 +6493,7 @@ class _GameRoomScreenState extends State<GameRoomScreen>
                               Text(
                                 (_currentParticipant?.ready == true) ? 'Ready ✓ (tap to unready)' : 'Tap when ready',
                                 style: TextStyle(
-                                  fontSize: isTablet ? 17.sp : 16.sp,
+                                  fontSize: isTablet ? 18.sp : 16.sp,
                                   fontWeight: FontWeight.w600,
                                   color: Colors.white,
                                 ),
@@ -6542,7 +6504,7 @@ class _GameRoomScreenState extends State<GameRoomScreen>
                       ),
                     if (!isOwner) SizedBox(height: 10.h),
 
-                    // Start / Coins button — height: padding vertical; "250" font: fontSize below
+                    // Start / Coins button (UI exact) - only host can start; all must be ready
                     if (isOwner)
                       GestureDetector(
                         onTap: isOwner
@@ -6577,13 +6539,12 @@ class _GameRoomScreenState extends State<GameRoomScreen>
                             : null,
                         child: Container(
                           width: double.infinity,
-                          padding: EdgeInsets.symmetric(
-                              vertical: isTablet ? 12.h : 8.h),
+                          padding: EdgeInsets.symmetric(vertical: 10.h),
                           decoration: BoxDecoration(
                             color: _isLobbyFormComplete()
                                 ? const Color.fromARGB(255, 47, 219, 53)
                                 : Colors.red,
-                            borderRadius: BorderRadius.circular(25.r),
+                            borderRadius: BorderRadius.circular(30.r),
                           ),
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.center,
@@ -6592,12 +6553,12 @@ class _GameRoomScreenState extends State<GameRoomScreen>
                                 ? Icon(
                                     Icons.rocket_launch,
                                     color: Colors.white,
-                                    size: isTablet ? 24.sp : 20.sp,
+                                    size: isTablet ? 32.sp : 25.h,
                                   )
                                 : Image.asset(
                                     AppImages.gameCoin,
-                                    height: isTablet ? 24.sp : 20.sp,
-                                    width: isTablet ? 24.sp : 20.sp,
+                                    height: isTablet ? 32.sp : 25.h,
+                                    width: isTablet ? 32.sp : 25.h,
                                     fit: BoxFit.contain,
                                   ),
                               SizedBox(width: 8.w),
@@ -6606,15 +6567,15 @@ class _GameRoomScreenState extends State<GameRoomScreen>
                                     ? "Let's go! Room is live"
                                     : '${_calculateEntryCost()}',
                                 style: TextStyle(
-                                  fontSize: isTablet ? 18.sp : 14.sp,
+                                  fontSize: isTablet ? 22.sp : 18.sp,
                                   fontWeight: FontWeight.w600,
                                   color: Colors.white,
                                 ),
                               ),
                             ],
                           ),
-                        ),
                       ),
+                    ),
 
                     // Minimal bottom padding before ad
                     SizedBox(height: 4.h),
@@ -6655,310 +6616,6 @@ class _GameRoomScreenState extends State<GameRoomScreen>
     if (!_areAllParticipantsReady()) return false;
     if (selectedGameMode == 'team_vs_team' && !_hasEnoughPlayersForTeamMode()) return false;
     return true;
-  }
-
-  /// Uniform container for all lobby fields (same height, border, radius, background).
-  Widget _buildUniformFieldContainer({
-    required bool isTablet,
-    required Widget child,
-  }) {
-    final height = isTablet ? 65.0 : 45.h;
-    return Container(
-      height: height,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(25.r),
-        border: Border.all(
-            color: Colors.white, width: isTablet ? 2.0 : 1.w),
-        color: Colors.black.withOpacity(0.35),
-      ),
-      child: child,
-    );
-  }
-
-  Widget _buildRoomCodeField({required bool isTablet}) {
-    final paddingH = isTablet ? 20.0 : 10.w;
-    final paddingV = isTablet ? 12.0 : 10.h;
-    final iconSz = isTablet ? 32.0 : 18.sp;
-    final fontSize = isTablet ? 22.0 : 18.sp;
-    return _buildUniformFieldContainer(
-      isTablet: isTablet,
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(25.r),
-          onTap: _copyRoomCode,
-          child: Padding(
-            padding: EdgeInsets.symmetric(horizontal: paddingH, vertical: paddingV),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.tag, color: Colors.white70, size: iconSz),
-                SizedBox(width: isTablet ? 12.0 : 8.w),
-                Expanded(
-                  child: Container(
-                    padding: EdgeInsets.symmetric(
-                        horizontal: 5.w, vertical: 3.h),
-                    decoration: BoxDecoration(
-                      color: AppColors.darkBlue,
-                      borderRadius: BorderRadius.circular(4.r),
-                    ),
-                    child: Center(
-                      child: FittedBox(
-                        fit: BoxFit.scaleDown,
-                        child: Text(
-                          _room?.code ?? '-----',
-                          style: GoogleFonts.lato(
-                            color: Colors.white,
-                            fontSize: fontSize,
-                            fontWeight: FontWeight.w600,
-                          ),
-                          overflow: TextOverflow.ellipsis,
-                          maxLines: 1,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-                SizedBox(width: isTablet ? 10.0 : 6.w),
-                Icon(Icons.copy, color: Colors.white70, size: iconSz),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildPublicFieldUniform(
-      {required bool isTablet, required bool isOwner}) {
-    final paddingH = isTablet ? 20.0 : 10.w;
-    final paddingV = isTablet ? 12.0 : 10.h;
-    final iconSz = isTablet ? 32.0 : 18.sp;
-    final fontSize = isTablet ? 22.0 : 13.sp;
-    return _buildUniformFieldContainer(
-      isTablet: isTablet,
-      child: Padding(
-        padding: EdgeInsets.symmetric(horizontal: paddingH, vertical: paddingV),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.start,
-          children: [
-            Icon(
-              isPublic ? Icons.lock_open : Icons.lock,
-              color: isPublic
-                  ? const Color.fromARGB(255, 220, 228, 223)
-                  : Colors.white54,
-              size: iconSz,
-            ),
-            SizedBox(width: isTablet ? 12.0 : 8.w),
-            Expanded(
-              child: Text(
-                'Public',
-                style: GoogleFonts.lato(
-                  color: isPublic ? Colors.white : Colors.white54,
-                  fontSize: fontSize,
-                  fontWeight: FontWeight.w600,
-                  height: 1.2,
-                ),
-                overflow: TextOverflow.ellipsis,
-                maxLines: 1,
-              ),
-            ),
-            if (isOwner)
-              GestureDetector(
-                onTap: () {
-                  setState(() => isPublic = !isPublic);
-                  _updateSettings();
-                },
-                child: Image.asset(
-                  isPublic
-                      ? AppImages.boxtoggleon
-                      : AppImages.boxtoggleoff,
-                  width: isTablet ? 28.w : 26.w,
-                  height: isTablet ? 32.h : 30.h,
-                  fit: BoxFit.contain,
-                ),
-              )
-            else
-              Image.asset(
-                isPublic
-                    ? AppImages.boxtoggleon
-                    : AppImages.boxtoggleoff,
-                width: isTablet ? 28.w : 26.w,
-                height: isTablet ? 32.h : 30.h,
-                fit: BoxFit.contain,
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildPlayerCountField(
-      {required bool isOwner, required bool isTablet}) {
-    final paddingH = isTablet ? 20.0 : 10.w;
-    final iconSz = isTablet ? 32.0 : 18.sp;
-    final fontSize = isTablet ? 22.0 : 13.sp;
-    final minPlayers = _participants.length > 2 ? _participants.length : 2;
-    final canDecrease = isOwner && players > minPlayers;
-    final canIncrease = isOwner && players < 15;
-    const segmentBg = Color(0xFF0E0E);
-    const centerBg = Color(0xFF080808);
-
-    return _buildUniformFieldContainer(
-      isTablet: isTablet,
-      child: Padding(
-        padding: EdgeInsets.symmetric(horizontal: paddingH),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            Icon(Icons.people, color: Colors.white70, size: iconSz),
-            SizedBox(width: isTablet ? 12.0 : 8.w),
-            Expanded(
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Material(
-                      color: segmentBg,
-                      child: InkWell(
-                        onTap: canDecrease
-                            ? () {
-                                setState(() {
-                                  players =
-                                      (players - 1).clamp(minPlayers, 15);
-                                  maxPlayers = players;
-                                  _updateSettings();
-                                });
-                              }
-                            : null,
-                        child: Center(
-                          child: Icon(
-                            Icons.remove,
-                            size: iconSz,
-                            color:
-                                canDecrease ? Colors.white : Colors.white30,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                  Expanded(
-                    child: Container(
-                      color: centerBg,
-                      alignment: Alignment.center,
-                      child: Text(
-                        '$players',
-                        style: GoogleFonts.lato(
-                          color: Colors.white,
-                          fontSize: fontSize,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ),
-                  Expanded(
-                    child: Material(
-                      color: segmentBg,
-                      child: InkWell(
-                        onTap: canIncrease
-                            ? () {
-                                setState(() {
-                                  players =
-                                      (players + 1).clamp(2, 15);
-                                  maxPlayers = players;
-                                  _updateSettings();
-                                });
-                              }
-                            : null,
-                        child: Center(
-                          child: Icon(
-                            Icons.add,
-                            size: iconSz,
-                            color:
-                                canIncrease ? Colors.white : Colors.white30,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildColorSelectorField(
-      {required bool isOwner, required bool isTablet}) {
-    final isTeamMode = selectedGameMode == 'team_vs_team';
-    final iconSz = isTablet ? 32.0 : 18.sp;
-    final boxSize = isTablet ? 28.0 : 22.r;
-    return _buildUniformFieldContainer(
-      isTablet: isTablet,
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Flexible(
-            child: GestureDetector(
-              onTap: isTeamMode
-                  ? () {
-                      final nextTeam =
-                          (selectedTeam == 'orange') ? 'blue' : 'orange';
-                      _selectTeam(nextTeam, explicitlyUpdate: true);
-                    }
-                  : null,
-              child: Icon(
-                Icons.arrow_back_ios_new,
-                size: iconSz,
-                color: isTeamMode ? Colors.white : Colors.white30,
-              ),
-            ),
-          ),
-          SizedBox(width: 4.w),
-          Container(
-            width: boxSize,
-            height: boxSize,
-            // decoration: BoxDecoration(
-            //   border: Border.all(
-            //       width: 1.2,
-            //       color: isTeamMode ? Colors.white : Colors.white30),
-            //   borderRadius: BorderRadius.circular(4.r),
-            // ),
-            padding: EdgeInsets.all(2.w),
-            child: Container(
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(2.r),
-                color: isTeamMode
-                    ? (selectedTeam == 'orange'
-                        ? Colors.orange
-                        : selectedTeam == 'blue'
-                            ? Colors.blue
-                            : Colors.grey.withOpacity(0.3))
-                    : Colors.grey.withOpacity(0.3),
-              ),
-            ),
-          ),
-          SizedBox(width: 4.w),
-          Flexible(
-            child: GestureDetector(
-              onTap: isTeamMode
-                  ? () {
-                      final nextTeam =
-                          (selectedTeam == 'blue') ? 'orange' : 'blue';
-                      _selectTeam(nextTeam, explicitlyUpdate: true);
-                    }
-                  : null,
-              child: Icon(
-                Icons.arrow_forward_ios,
-                size: iconSz,
-                color: isTeamMode ? Colors.white : Colors.white30,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
   }
 
   Widget _buildCreateRoomTopStrip(bool isOwner) {
@@ -7172,260 +6829,6 @@ class _GameRoomScreenState extends State<GameRoomScreen>
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  // Lobby filter pills matching multiplayer screen style (0xFF0E0E, white border, bottom sheet)
-  Widget _buildLobbyFilterPill({
-    required String hint,
-    required String? value,
-    required List<String> items,
-    required IconData icon,
-    Color iconColor = Colors.white70,
-    required bool isTablet,
-    required ValueChanged<String?>? onChanged,
-    required String Function(String) getDisplayValue,
-  }) {
-    final displayValue = value ?? hint;
-    return Container(
-      height: isTablet ? 65.0 : 45.h,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(25.r),
-        border: Border.all(
-            color: Colors.white, width: isTablet ? 2.0 : 1.w),
-        color: Colors.black.withOpacity(0.35),
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(25.r),
-          onTap: onChanged == null
-              ? null
-              : () async {
-                  FocusScope.of(context).unfocus();
-                  final result = await showModalBottomSheet<String>(
-                    context: context,
-                    isScrollControlled: true,
-                    backgroundColor: Colors.transparent,
-                    builder: (context) => SelectionBottomSheet(
-                      title: hint,
-                      items: items,
-                      selectedItem: value,
-                    ),
-                  );
-                  if (result != null) onChanged(result);
-                },
-          child: Padding(
-            padding: EdgeInsets.symmetric(
-              horizontal: isTablet ? 20.0 : 10.w,
-              vertical: isTablet ? 12.0 : 10.h,
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.start,
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                Icon(icon,
-                    color: iconColor, size: isTablet ? 32.0 : 18.sp),
-                SizedBox(width: isTablet ? 12.0 : 8.w),
-                Expanded(
-                  child: Text(
-                    getDisplayValue(displayValue),
-                    overflow: TextOverflow.ellipsis,
-                    maxLines: 1,
-                    softWrap: false,
-                    textAlign: TextAlign.left,
-                    style: GoogleFonts.lato(
-                      color: Colors.white,
-                      fontSize: isTablet ? 22.0 : 13.sp,
-                      fontWeight: FontWeight.w600,
-                      height: 1.2,
-                    ),
-                  ),
-                ),
-                SizedBox(width: isTablet ? 10.0 : 6.w),
-                Icon(Icons.keyboard_arrow_down_rounded,
-                    color: Colors.white70,
-                    size: isTablet ? 32.0 : 16.sp),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildLobbyCategoryPill({
-    required String hint,
-    required List<String> selectedValues,
-    required List<String> items,
-    required IconData icon,
-    Color iconColor = Colors.orange,
-    required bool isTablet,
-    required ValueChanged<List<String>>? onChanged,
-    required String Function(String) getDisplayValue,
-  }) {
-    final displayText = selectedValues.isEmpty
-        ? hint
-        : selectedValues.length == 1
-            ? getDisplayValue(selectedValues.first)
-            : '${selectedValues.length} ${getDisplayValue('selected')}';
-    return Container(
-      height: isTablet ? 65.0 : 45.h,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(25.r),
-        border: Border.all(
-            color: Colors.white, width: isTablet ? 2.0 : 1.w),
-        color: Colors.black.withOpacity(0.35),
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(25.r),
-          onTap: onChanged == null
-              ? null
-              : () async {
-                  FocusScope.of(context).unfocus();
-                  final result =
-                      await showModalBottomSheet<List<String>>(
-                    context: context,
-                    isScrollControlled: true,
-                    backgroundColor: Colors.transparent,
-                    builder: (context) =>
-                        RoomCategoryPickerSheet(
-                      title: hint,
-                      items: items,
-                      selectedItems: selectedValues,
-                    ),
-                  );
-                  if (result != null) onChanged(result);
-                },
-          child: Padding(
-            padding: EdgeInsets.symmetric(
-              horizontal: isTablet ? 20.0 : 10.w,
-              vertical: isTablet ? 12.0 : 10.h,
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.start,
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                Icon(icon,
-                    color: iconColor, size: isTablet ? 32.0 : 18.sp),
-                SizedBox(width: isTablet ? 12.0 : 8.w),
-                Expanded(
-                  child: Text(
-                    displayText,
-                    overflow: TextOverflow.ellipsis,
-                    maxLines: 1,
-                    softWrap: false,
-                    textAlign: TextAlign.left,
-                    style: GoogleFonts.lato(
-                      color: selectedValues.isEmpty
-                          ? Colors.white54
-                          : Colors.white,
-                      fontSize: isTablet ? 22.0 : 13.sp,
-                      fontWeight: FontWeight.w600,
-                      height: 1.2,
-                    ),
-                  ),
-                ),
-                SizedBox(width: isTablet ? 10.0 : 6.w),
-                Icon(Icons.keyboard_arrow_down_rounded,
-                    color: Colors.white70,
-                    size: isTablet ? 32.0 : 16.sp),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildLobbyGameModePill({
-    required bool isOwner,
-    required bool isTablet,
-  }) {
-    final displayValue = selectedGameMode == '1v1'
-        ? AppLocalizations.individual
-        : selectedGameMode == 'team_vs_team'
-            ? AppLocalizations.team
-            : AppLocalizations.individual;
-    return Container(
-      height: isTablet ? 65.0 : 45.h,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(25.r),
-        border: Border.all(
-            color: Colors.white, width: isTablet ? 2.0 : 1.w),
-        color: const Color(0xFF0E0E),
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(25.r),
-          onTap: isOwner
-              ? () async {
-                  FocusScope.of(context).unfocus();
-                  final result = await showModalBottomSheet<String>(
-                    context: context,
-                    isScrollControlled: true,
-                    backgroundColor: Colors.transparent,
-                    builder: (context) => SelectionBottomSheet(
-                      title: AppLocalizations.mode,
-                      items: [
-                        AppLocalizations.team,
-                        AppLocalizations.individual,
-                      ],
-                      selectedItem: displayValue,
-                    ),
-                  );
-                  if (result != null) {
-                    setState(() {
-                      selectedGameMode = result == AppLocalizations.team
-                          ? 'team_vs_team'
-                          : '1v1';
-                      selectedGamePlay =
-                          selectedGameMode == '1v1' ? '1 vs 1' : '2 vs 2';
-                    });
-                    _updateSettings();
-                  }
-                }
-              : null,
-          child: Padding(
-            padding: EdgeInsets.symmetric(
-              horizontal: isTablet ? 20.0 : 10.w,
-              vertical: isTablet ? 12.0 : 10.h,
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.start,
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                Icon(Icons.people,
-                    color: Colors.blueAccent,
-                    size: isTablet ? 32.0 : 18.sp),
-                SizedBox(width: isTablet ? 12.0 : 8.w),
-                Expanded(
-                  child: Text(
-                    displayValue,
-                    overflow: TextOverflow.ellipsis,
-                    maxLines: 1,
-                    softWrap: false,
-                    textAlign: TextAlign.left,
-                    style: GoogleFonts.lato(
-                      color: Colors.white,
-                      fontSize: isTablet ? 22.0 : 13.sp,
-                      fontWeight: FontWeight.w600,
-                      height: 1.2,
-                    ),
-                  ),
-                ),
-                SizedBox(width: isTablet ? 10.0 : 6.w),
-                Icon(Icons.keyboard_arrow_down_rounded,
-                    color: Colors.white70,
-                    size: isTablet ? 32.0 : 16.sp),
-              ],
-            ),
-          ),
-        ),
       ),
     );
   }
@@ -8316,7 +7719,7 @@ class _GameRoomScreenState extends State<GameRoomScreen>
   }
 
   Widget _buildToggleField({
-    double? width,
+    required double width,
     required String title,
     required bool value,
     required ValueChanged<bool> onChanged,
@@ -8324,9 +7727,12 @@ class _GameRoomScreenState extends State<GameRoomScreen>
   }) {
     final double iconSize = isTablet ? 32.sp : 20.sp; 
     final double fontSize = isTablet ? 18.sp : 14.sp;
-    final double height = isTablet ? 65.0 : 45.h;
+    final double height = isTablet ? 60.h : 45.h;
 
-    final child = _gradientShell(
+    return SizedBox(
+      width: width,
+      height: height,
+      child: _gradientShell(
         isActive: value,
         child: Padding(
           padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 2.h),
@@ -8361,11 +7767,8 @@ class _GameRoomScreenState extends State<GameRoomScreen>
             ],
           ),
         ),
+      ),
     );
-    if (width != null) {
-      return SizedBox(width: width, height: height, child: child);
-    }
-    return SizedBox(height: height, child: child);
   }
 
   Widget _gradientShell({required Widget child, required bool isActive}) {
@@ -8700,7 +8103,7 @@ class _GameRoomScreenState extends State<GameRoomScreen>
                         _updateSettings();
                       }
                     : (_) {},
-                hintText: AppLocalizations.country,
+                hintText: 'Country',
                 icon: Icons.flag,
                 isTablet: isTablet,
               ),
@@ -8747,7 +8150,7 @@ class _GameRoomScreenState extends State<GameRoomScreen>
             Expanded(
                 child: _buildToggle(
               icon: Icons.mic,
-              label: AppLocalizations.voice,
+              label: 'Voice',
               value: voiceEnabled,
               enabled: isOwner,
               isTablet: isTablet,
@@ -8760,7 +8163,7 @@ class _GameRoomScreenState extends State<GameRoomScreen>
             Expanded(
                 child: _buildToggle(
               icon: Icons.public,
-              label: AppLocalizations.public,
+              label: 'Public',
               value: isPublic,
               enabled: isOwner,
               isTablet: isTablet,
@@ -10201,7 +9604,7 @@ class _GameRoomScreenState extends State<GameRoomScreen>
               mainAxisSize: MainAxisSize.min,
               children: [
                 teamBadge(
-                  label: AppLocalizations.teamA,
+                  label: 'A',
                   color: const Color(0xFF02A9F7),
                   onTap: () => _showTeamPlayers('blue', 'Team A'),
                   isTablet: isTablet,
@@ -10229,7 +9632,7 @@ class _GameRoomScreenState extends State<GameRoomScreen>
                 ),
                 SizedBox(width: 14.w),
                 teamBadge(
-                  label: AppLocalizations.teamB,
+                  label: 'B',
                   color: const Color(0xFFF59E0B),
                   onTap: () => _showTeamPlayers('orange', 'Team B'),
                   isTablet: isTablet,
@@ -10464,7 +9867,7 @@ class _GameRoomScreenState extends State<GameRoomScreen>
     final List<Widget> optionTiles = [
       _buildOptionTile(
         imageAsset: AppImages.correct,
-        label: AppLocalizations.correct,
+        label: 'Correct',
         onTap: () {
           setState(() {
             _showOptionMenu = false;
@@ -10474,7 +9877,7 @@ class _GameRoomScreenState extends State<GameRoomScreen>
       ),
       _buildOptionTile(
         imageAsset: AppImages.wrong,
-        label: AppLocalizations.wrong,
+        label: 'Wrong',
         onTap: () {
           setState(() {
             _showOptionMenu = false;
@@ -10484,7 +9887,7 @@ class _GameRoomScreenState extends State<GameRoomScreen>
       ),
       _buildOptionTile(
         imageAsset: AppImages.breakWord,
-        label: AppLocalizations.breakWord,
+        label: 'Break Word',
         onTap: () {
           setState(() {
             _showOptionMenu = false;
@@ -10494,7 +9897,7 @@ class _GameRoomScreenState extends State<GameRoomScreen>
       ),
       _buildOptionTile(
         imageAsset: AppImages.alternateWord,
-        label: AppLocalizations.alternate,
+        label: 'Alternate Word',
         onTap: () {
           setState(() {
             _showOptionMenu = false;
@@ -11112,10 +10515,12 @@ class _GameRoomScreenState extends State<GameRoomScreen>
     );
   }
 
-  /// Center strip (scores / Who's Next) shown below the top bar — tappable to toggle leaderboard.
-  Widget _buildGameCenterStrip() {
+  Widget _buildGameTopBar() {
+    final roomId = _room?.code ?? '—';
     final isTeamMode = selectedGameMode == 'team_vs_team';
     final bool isPlaying = !_waitingForPlayers && (_room?.status == 'playing');
+    final isTablet = MediaQuery.of(context).size.width > 600;
+
     final Widget centerContent;
     if (isTeamMode) {
       centerContent = isPlaying && _showTeamScoreboard
@@ -11125,241 +10530,279 @@ class _GameRoomScreenState extends State<GameRoomScreen>
       centerContent =
           isPlaying ? _buildOneVsOneScoreboardView() : _buildOneVsOneIntro();
     }
-    return GestureDetector(
-      behavior: HitTestBehavior.translucent,
-      onTap: (isPlaying && _participants.isNotEmpty) ? _toggleLeaderboard : null,
-      child: Padding(
-        padding: EdgeInsets.symmetric(vertical: 6.h, horizontal: 8.w),
-        child: Center(child: centerContent),
-      ),
-    );
-  }
 
-  Widget _buildGameTopBar() {
-    final roomId = _room?.code ?? '—';
-    final isTablet = MediaQuery.of(context).size.width > 600;
+    // Optimal top bar height: larger on tablet, comfortable on phone
+    final double topBarVertical = isTablet ? 14.h : 12.h;
+    final double topBarHorizontal = isTablet ? 16.w : 12.w;
 
-    // Sizes: tablet slightly larger, mobile compact
-    final double edgePadding = isTablet ? 16.w : 12.w;
-    final double spacing = isTablet ? 8.w : 6.w;
-    final double barVertical = isTablet ? 14.h : 12.h;
-    final double barHorizontal = isTablet ? 16.w : 12.w;
-    final double pillRadius = isTablet ? 14.r : 12.r;
-    final double flagSize = isTablet ? 36.w : 32.w;
-    final double scoreBadgeSize = isTablet ? 28.w : 26.w;
-    final double avatarSize = isTablet ? 24.w : 22.w;
-    final double fontSizeRoom = isTablet ? 12.sp : 11.sp;
-    final double fontSizeName = isTablet ? 12.sp : 11.sp;
-
-    final int currentScore = _currentParticipant?.score ?? 0;
-    final String userName = _currentUser?.name ?? 'Guest';
-    final String? avatarPath = _currentUser?.avatar ?? _currentUser?.profilePicture;
-
-    // a. Country flag inside circular container
-    final Widget flagCircle = Container(
-      width: flagSize,
-      height: flagSize,
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: const Color(0xFF1B1C2A),
-        border: Border.all(color: Colors.white24, width: 1),
-      ),
-      child: ClipOval(
-        child: selectedCountry != null && selectedCountry!.isNotEmpty
-            ? Text(
-                CountryPickerWidget.getCountryFlag(selectedCountry),
-                style: TextStyle(fontSize: (flagSize * 0.55).clamp(12.0, 20.0)),
-              )
-            : const SizedBox.shrink(),
-      ),
-    );
-
-    // b. Room code pill (copyable)
-    final Widget roomCodePill = GestureDetector(
-      onTap: () async {
-        await Clipboard.setData(ClipboardData(text: roomId));
-        if (mounted) {
-          setState(() => _copied = true);
-          Future.delayed(const Duration(seconds: 2), () {
-            if (mounted) setState(() => _copied = false);
-          });
-        }
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(AppLocalizations.roomCodeCopied)),
-        );
-      },
-      child: Container(
-        padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 6.h),
-        decoration: BoxDecoration(
-          color: const Color(0xFF1B1C2A),
-          borderRadius: BorderRadius.circular(pillRadius),
-          border: Border.all(color: Colors.white24, width: 1),
-        ),
-        child: Text(
-          _copied ? 'Copied!' : roomId,
-          style: TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.w600,
-            fontSize: fontSizeRoom,
-          ),
-        ),
-      ),
-    );
-
-    // c. Score badge (circular, overlapping next container)
-    final Widget scoreBadge = Container(
-      width: scoreBadgeSize,
-      height: scoreBadgeSize,
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: Colors.white,
-        border: Border.all(color: const Color(0xFF2A2A2A), width: 1.5),
-      ),
-      child: Text(
-        '$currentScore',
-        style: TextStyle(
-          color: Colors.black87,
-          fontWeight: FontWeight.bold,
-          fontSize: (scoreBadgeSize * 0.45).clamp(10.0, 14.0),
-        ),
-      ),
-    );
-
-    // d. Username pill (avatar + name, rounded border)
-    final Widget usernamePill = Container(
-      padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 4.h),
-      decoration: BoxDecoration(
-        color: const Color(0xFF1B1C2A),
-        borderRadius: BorderRadius.circular(pillRadius),
-        border: Border.all(color: Colors.white, width: 1),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          CircleAvatar(
-            radius: avatarSize / 2,
-            backgroundColor: Colors.grey.shade700,
-            backgroundImage: avatarPath != null && avatarPath.isNotEmpty
-                ? AssetImage(avatarPath)
-                : null,
-            child: avatarPath == null || avatarPath.isEmpty
-                ? Text(
-                    (userName.isNotEmpty ? userName[0] : 'G').toUpperCase(),
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: (avatarSize * 0.45).clamp(10.0, 12.0),
-                    ),
-                  )
-                : null,
-          ),
-          SizedBox(width: 6.w),
-          ConstrainedBox(
-            constraints: BoxConstraints(maxWidth: isTablet ? 100.w : 80.w),
-            child: Text(
-              userName,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.w600,
-                fontSize: fontSizeName,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-
-    // e. Public/Private toggle (green/red rounded)
-    final Widget publicPrivatePill = Container(
-      padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 6.h),
-      decoration: BoxDecoration(
-        color: isPublic ? Colors.green : const Color.fromARGB(255, 190, 30, 19),
-        borderRadius: BorderRadius.circular(pillRadius),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(Icons.circle, size: 6.w, color: Colors.white),
-          SizedBox(width: 6.w),
-          Text(
-            isPublic ? AppLocalizations.public : AppLocalizations.private,
-            style: TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.w600,
-              fontSize: fontSizeName,
-            ),
-          ),
-        ],
-      ),
-    );
-
-    // f. Exit icon
-    final Widget exitButton = GestureDetector(
-      onTap: () {
-        showDialog(
-          context: context,
-          builder: (BuildContext context) {
-            return ExitPopUp(
-              imagePath: AppImages.inactive,
-              onExit: () => _leaveRoom(),
-            );
-          },
-        );
-      },
-      child: Image.asset(
-        AppImages.exitgame,
-        width: isTablet ? 32.w : 28.w,
-        height: isTablet ? 32.w : 28.w,
-      ),
-    );
-
-    // Row: flag, room code, [score overlapping username], public/private, exit — equal padding, vertical center
     return Padding(
-      padding: EdgeInsets.symmetric(horizontal: edgePadding),
+      padding: EdgeInsets.symmetric(horizontal: isTablet ? 12.w : 8.w),
       child: Container(
-        constraints: BoxConstraints(minHeight: isTablet ? 56.h : 48.h),
-        padding: EdgeInsets.symmetric(
-          horizontal: barHorizontal,
-          vertical: barVertical,
+        constraints: BoxConstraints(
+          minHeight: isTablet ? 56.h : 48.h,
         ),
+        padding: EdgeInsets.symmetric(horizontal: topBarHorizontal, vertical: topBarVertical),
         decoration: BoxDecoration(
           color: const Color(0xFF000000),
           borderRadius: BorderRadius.circular(isTablet ? 14.r : 12.r),
         ),
         child: Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
+            // Wrap the Room ID Pill (representing the current user) with the Speaking Indicator
             _SpeakingIndicatorOverlay(
               isSpeaking: voiceEnabled &&
                   _speakingInGameUserIds.contains(_currentUser?.id),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  flagCircle,
-                  SizedBox(width: spacing),
-                  roomCodePill,
-                  SizedBox(width: spacing),
-                  // Score badge overlapping the username pill (next container)
-                  Stack(
-                    clipBehavior: Clip.none,
-                    alignment: Alignment.centerLeft,
-                    children: [
-                      Padding(
-                        padding: EdgeInsets.only(left: scoreBadgeSize * 0.5),
-                        child: usernamePill,
+              child: Showcase(
+                  descriptionAlignment: Alignment.centerLeft,
+                  tooltipActions: [
+                    TooltipActionButton(
+                      name: 'skip',
+                      backgroundColor: Colors.white,
+                      textStyle: const TextStyle(color: Colors.grey),
+                      type: TooltipDefaultActionType.skip,
+                      onTap: () => ShowcaseView.get().dismiss(),
+                    ),
+                    TooltipActionButton(
+                      name: 'Next',
+                      tailIcon: const ActionButtonIcon(
+                        icon: Icon(Icons.arrow_forward_ios, size: 12),
                       ),
-                      scoreBadge,
-                    ],
-                  ),
-                ],
+                      type: TooltipDefaultActionType.next,
+                      backgroundColor: Colors.white,
+                      textStyle: const TextStyle(color: Colors.black),
+                      onTap: () async {
+                        await Future.delayed(Duration(milliseconds: 300));
+                        ShowcaseView.get().next();
+                      }
+                    ),
+                  ],
+                  overlayColor: const Color.fromRGBO(116, 116, 116, 0.63),
+                  showArrow: false,
+                  toolTipMargin: 21,
+                  tooltipPadding: const EdgeInsets.all(12),
+                  description: "Click to View room name and teams",
+                  key: showcasekey2,
+                  child: _copyableRoomIdPill(roomId)),
+            ),
+            SizedBox(width: 5.w),
+            Expanded(
+              child: Center(
+                child: GestureDetector(
+                  behavior: HitTestBehavior.translucent,
+                  onTap: (isPlaying && _participants.isNotEmpty)
+                      ? _toggleLeaderboard
+                      : null,
+                  child: AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 500),
+                      transitionBuilder:
+                          (Widget child, Animation<double> animation) {
+                        final Animation<double> curved = CurvedAnimation(
+                          parent: animation,
+                          curve: Curves.easeOut,
+                        );
+                        return FadeTransition(
+                          opacity: animation,
+                          child: ScaleTransition(scale: curved, child: child),
+                        );
+                      },
+                      child: Showcase(
+                        descriptionAlignment: Alignment.centerLeft,
+                        tooltipActions: [
+                          TooltipActionButton(
+                            name: 'skip',
+                            backgroundColor: Colors.white,
+                            textStyle: const TextStyle(color: Colors.grey),
+                            type: TooltipDefaultActionType.skip,
+                            onTap: () => ShowcaseView.get().dismiss(),
+                          ),
+                          TooltipActionButton(
+                            name: 'Next',
+                            tailIcon: const ActionButtonIcon(
+                              icon: Icon(Icons.arrow_forward_ios, size: 12),
+                            ),
+                            type: TooltipDefaultActionType.next,
+                            backgroundColor: Colors.white,
+                            textStyle: const TextStyle(color: Colors.black),
+                            onTap: () async {
+                              await Future.delayed(Duration(milliseconds: 300));
+                              ShowcaseView.get().next();
+                            }
+                          ),
+                        ],
+
+                        overlayColor: const Color.fromRGBO(116, 116, 116, 0.63),
+                        showArrow: false,
+                        toolTipMargin: 21,
+                        tooltipPadding: const EdgeInsets.all(12),
+                        key: showcasekey1,
+                        description: "Click to View top players and scores",
+
+                        /// 👇 ADD width + height here
+                        child: Center(child: centerContent),
+                      )),
+                ),
               ),
             ),
-            SizedBox(width: spacing),
-            publicPrivatePill,
-            SizedBox(width: spacing),
-            exitButton,
+            SizedBox(width: 5.w),
+            GestureDetector(
+              onTap: () {
+                 _toggleLeaderboard();
+                 return;
+                List<Team> teams = [];
+                if (isTeamMode) {
+                  // In team mode, all team members have the same score (team score)
+                  // So we just need to get the score from any team member
+                  int orangeScore = 0;
+                  int blueScore = 0;
+                  String? avatarTeamA;
+                  String? avatarTeamB;
+                  
+                  for (var participant in _participants) {
+                    if (participant.team == 'orange') {
+                      // In team mode, all orange team members have same score
+                      // So we only need to set it once
+                      if (orangeScore == 0) {
+                        orangeScore = participant.score ?? 0;
+                      }
+                      // Get avatar from first orange team member found
+                      if (avatarTeamB == null) {
+                        avatarTeamB = participant.user?.avatar ??
+                            participant.user?.profilePicture;
+                      }
+                    } else if (participant.team == 'blue') {
+                      // In team mode, all blue team members have same score
+                      // So we only need to set it once
+                      if (blueScore == 0) {
+                        blueScore = participant.score ?? 0;
+                      }
+                      // Get avatar from first blue team member found
+                      if (avatarTeamA == null) {
+                        avatarTeamA = participant.user?.avatar ??
+                            participant.user?.profilePicture;
+                      }
+                    }
+                  }
+                  final isCurrentUserTeamA = _participants.any((p) =>
+                      p.team == 'blue' &&
+                      (p.userId == _currentUser?.id || p.user?.id == _currentUser?.id));
+                  final isCurrentUserTeamB = _participants.any((p) =>
+                      p.team == 'orange' &&
+                      (p.userId == _currentUser?.id || p.user?.id == _currentUser?.id));
+                  teams = [
+                    Team(
+                      name: "Team A",
+                      score: blueScore,
+                      avatar: avatarTeamA ?? AppImages.profile,
+                      isCurrentUser: isCurrentUserTeamA,
+                    ),
+                    Team(
+                      name: "Team B",
+                      score: orangeScore,
+                      avatar: avatarTeamB ?? AppImages.profile,
+                      isCurrentUser: isCurrentUserTeamB,
+                    ),
+                  ];
+                } else {
+                  _participants.sort((a, b) => b.score!.compareTo(a.score!));
+                  var topPlayers = _participants.take(3).toList();
+                  teams = topPlayers.map((player) {
+                    final isCurrentUserPlayer = player.userId == _currentUser?.id ||
+                        player.user?.id == _currentUser?.id;
+                    return Team(
+                      name: player.user?.name ?? 'Player',
+                      score: player.score ?? 0,
+                      avatar: player.user?.avatar ??
+                          player.user?.profilePicture ??
+                          AppImages.profile,
+                      isCurrentUser: isCurrentUserPlayer,
+                    );
+                  }).toList();
+                }
+
+                if (teams.isNotEmpty) {
+                  showDialog(
+                    context: context,
+                    barrierDismissible: false,
+                    builder: (BuildContext context) {
+                      return Dialog(
+                        backgroundColor: Colors.transparent,
+                        insetPadding: const EdgeInsets.all(16),
+                        child: TeamWinnerPopup(
+                          teams: teams,
+                          onNext: () {
+                            _toggleLeaderboard();
+                          },
+                        ),
+                      );
+                    },
+                  );
+                }
+              },
+              child: Showcase(
+                targetBorderRadius: BorderRadius.circular(20),
+                tooltipBackgroundColor: Colors.white,
+                descriptionAlignment: Alignment.centerLeft,
+                tooltipActions: [
+                  TooltipActionButton(
+                    name: 'skip',
+                    backgroundColor: Colors.white,
+                    textStyle: const TextStyle(color: Colors.grey),
+                    type: TooltipDefaultActionType.skip,
+                    onTap: () => ShowcaseView.get().dismiss(),
+                  ),
+                  TooltipActionButton(
+                    name: 'Next',
+                    tailIcon: const ActionButtonIcon(
+                      icon: Icon(Icons.arrow_forward_ios, size: 12),
+                    ),
+                    type: TooltipDefaultActionType.next,
+                    backgroundColor: Colors.white,
+                    textStyle: const TextStyle(color: Colors.black),
+                    onTap: () async {
+                      await Future.delayed(Duration(milliseconds: 300));
+                      ShowcaseView.get().next();
+                    }
+                  ),
+                ],
+                overlayColor: const Color.fromRGBO(116, 116, 116, 0.63),
+                showArrow: false,
+                toolTipMargin: 21,
+                tooltipPadding: const EdgeInsets.all(12),
+                description: "Click to see the room status",
+                key: showcasekey3,
+                child: _pill(
+                    (isPublic)
+                        ? AppLocalizations.public
+                        : AppLocalizations.private,
+                    color: (isPublic)
+                        ? Colors.green
+                        : const Color.fromARGB(255, 190, 30, 19),
+                    textColor: Colors.white,
+                    width: 70.w,
+                    leading: Image.asset(
+                      AppImages.circleprivate,
+                      height: 18.h,
+                      width: 18.w,
+                    )),
+              ),
+            ),
+            SizedBox(width: 5.w),
+            GestureDetector(
+              onTap: () {
+                showDialog(
+                  context: context,
+                  builder: (BuildContext context) {
+                    return ExitPopUp(
+                      imagePath: AppImages.inactive,
+                      onExit: () {
+                        _leaveRoom();
+                      },
+                    );
+                  },
+                );
+              },
+              child: Image.asset(AppImages.exitgame, width: 30.w, height: 30.h),
+            ),
           ],
         ),
       ),
@@ -13204,7 +12647,7 @@ class _GameRoomScreenState extends State<GameRoomScreen>
         child: Row(
           children: [
             Text(
-              AppLocalizations.messageLabel,
+              'Message :',
               style: GoogleFonts.lato(
                 color: Colors.white60,
                 fontSize: 13.sp,
@@ -13320,7 +12763,7 @@ class _GameRoomScreenState extends State<GameRoomScreen>
                                       borderRadius: BorderRadius.circular(20.r),
                                       border: universalBorder),
                                   child: Text(
-                                    AppLocalizations.answersChat,
+                                    'Answers chat',
                                     style: GoogleFonts.inter(
                                       color: Colors.white70,
                                       fontSize: 12.sp,
@@ -13369,7 +12812,7 @@ class _GameRoomScreenState extends State<GameRoomScreen>
                                             ),
                                             SizedBox(height: 12.h),
                                             Text(
-                                              AppLocalizations.answersChatInstruction,
+                                              'Type your answers here. If you\'re correct, it will be marked in green',
                                               textAlign: TextAlign.center,
                                               style: TextStyle(
                                                 color: Colors.white70,
@@ -13509,7 +12952,7 @@ class _GameRoomScreenState extends State<GameRoomScreen>
                                         fontSize: 14.sp,
                                       ),
                                       decoration: InputDecoration(
-                                        hintText: AppLocalizations.typeAnswersHere,
+                                        hintText: 'Type your answers here...',
                                         hintStyle: TextStyle(
                                           color: Colors.white38,
                                           fontSize: 10.sp,
@@ -13644,7 +13087,7 @@ class _GameRoomScreenState extends State<GameRoomScreen>
                                       horizontal: 6.w, vertical: 3.h),
                                   child: Center(
                                     child: Text(
-                                      AppLocalizations.answersChat,
+                                      'Answers chat',
                                       style: GoogleFonts.inter(
                                         color: Colors.white70,
                                         fontSize: 12.sp,
@@ -13678,7 +13121,7 @@ class _GameRoomScreenState extends State<GameRoomScreen>
                                                 ),
                                                 SizedBox(height: 8.h),
                                                 Text(
-                                                  AppLocalizations.answersChatInstruction,
+                                                  'Type your answers here. If you\'re correct, it will be marked in green',
                                                   textAlign: TextAlign.center,
                                                   style: TextStyle(
                                                     color: Colors.white70,
@@ -13982,7 +13425,7 @@ class _GameRoomScreenState extends State<GameRoomScreen>
                                       fontSize: 14.sp,
                                     ),
                                     decoration: InputDecoration(
-                                      hintText: AppLocalizations.typeAnything,
+                                      hintText: 'Type anything...',
                                       hintStyle: TextStyle(
                                         color: Colors.white38,
                                         fontSize: 14.sp,
@@ -14229,7 +13672,7 @@ class _GameRoomScreenState extends State<GameRoomScreen>
           ),
         ),
         Text(
-          AppLocalizations.spectating,
+          "(Spectating)",
           style: GoogleFonts.lato(
             color: Colors.white24,
             fontSize: 8.sp,
@@ -14263,7 +13706,7 @@ class _GameRoomScreenState extends State<GameRoomScreen>
                           border: universalBorder,
                         ),
                         child: Text(
-                          AppLocalizations.answersChat,
+                          'Answers chat',
                           style: GoogleFonts.inter(
                             color: Colors.white70,
                             fontSize: 14.sp,
@@ -14421,7 +13864,7 @@ class _GameRoomScreenState extends State<GameRoomScreen>
                             ),
                             cursorColor: Colors.white.withOpacity(0.8),
                             decoration: InputDecoration(
-                              hintText: AppLocalizations.typeAnything,
+                              hintText: 'Type anything...',
                               hintStyle: TextStyle(
                                 color: Colors.white38,
                                 fontSize: 12.sp,
@@ -14648,7 +14091,7 @@ class _GameRoomScreenState extends State<GameRoomScreen>
                       ),
                       cursorColor: Colors.white.withOpacity(0.8),
                       decoration: InputDecoration(
-                        hintText: AppLocalizations.typeAnything,
+                        hintText: 'Type anything...',
                         hintStyle: TextStyle(
                           color: Colors.white38,
                           fontSize: 12.sp,

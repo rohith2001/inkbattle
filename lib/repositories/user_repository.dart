@@ -50,17 +50,20 @@ class UserRepository {
     }
   }
 
-  // Guest Signup
+  // Guest Signup (find-or-create by providerId; used for lazy creation)
   Future<Either<Failure, AuthResponse>> guestSignup({
     required String name,
+    String? providerId,
     String? avatar,
     String? language,
     String? country,
   }) async {
     try {
+      final effectiveProviderId =
+          providerId ?? "guest_${DateTime.now().millisecondsSinceEpoch}";
       var payload = {
         "provider": "guest",
-        "providerId": "guest_${DateTime.now().millisecondsSinceEpoch}",
+        "providerId": effectiveProviderId,
         "name": name,
         "avatar": avatar,
         "language": language,
@@ -219,6 +222,22 @@ class UserRepository {
   Future<bool> isLoggedIn() async {
     final token = await LocalStorageUtils.fetchToken();
     return token != null && token.isNotEmpty;
+  }
+
+  /// Ensures a guest user exists on the server (lazy creation).
+  /// If no token but pending guest prefs exist, creates/finds guest and saves token.
+  Future<bool> ensureGuest() async {
+    if (await isLoggedIn()) return true;
+    final pending = LocalStorageUtils.getPendingGuest();
+    if (pending == null) return false;
+    final result = await guestSignup(
+      name: pending['name'] ?? 'Guest',
+      providerId: pending['localGuestId'],
+      avatar: pending['avatar'],
+      language: pending['language'],
+      country: pending['country'],
+    );
+    return result.fold((_) => false, (_) => true);
   }
 
   // Claim daily login bonus

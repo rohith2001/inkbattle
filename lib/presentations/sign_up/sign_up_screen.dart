@@ -14,6 +14,7 @@ import 'package:inkbattle_frontend/utils/routes/routes.dart';
 import 'package:inkbattle_frontend/widgets/topCoins.dart';
 import 'package:inkbattle_frontend/repositories/user_repository.dart';
 import 'package:inkbattle_frontend/utils/lang.dart';
+import 'package:inkbattle_frontend/utils/preferences/local_preferences.dart';
 
 class SignUpScreen extends StatefulWidget {
   const SignUpScreen({super.key});
@@ -141,29 +142,23 @@ class _SignUpScreenState extends State<SignUpScreen>
     setState(() => _isSubmitting = true);
 
     try {
-      final result = await _userRepository.guestSignup(
+      // Lazy creation: save pending guest locally; no DB row until first server action.
+      final pending = LocalStorageUtils.getPendingGuest();
+      final random = Random();
+      final localGuestId = pending?['localGuestId'] ??
+          'g_${DateTime.now().millisecondsSinceEpoch}_${random.nextInt(999999)}';
+      await LocalStorageUtils.savePendingGuest(
+        localGuestId: localGuestId,
         name: username,
-        avatar: selectedProfilePhoto, // Use avatar if selected
+        avatar: selectedProfilePhoto,
         language: selectedLanguage,
         country: selectedCountry,
-        // If you have a separate signup method, pass the profile photo path:
-        // profilePhotoPath: selctedProfilePhoto?.path,
       );
 
-      result.fold(
-        (failure) {
-          if (!mounted) return;
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(failure.message)),
-          );
-        },
-        (authResponse) {
-          if (!mounted) return;
-          _pageController.nextPage(
-            duration: const Duration(milliseconds: 400),
-            curve: Curves.easeInOut,
-          );
-        },
+      if (!mounted) return;
+      _pageController.nextPage(
+        duration: const Duration(milliseconds: 400),
+        curve: Curves.easeInOut,
       );
     } catch (e) {
       if (mounted) {

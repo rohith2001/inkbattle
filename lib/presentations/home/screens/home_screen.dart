@@ -12,6 +12,7 @@ import 'package:inkbattle_frontend/widgets/custom_svg.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:inkbattle_frontend/repositories/user_repository.dart';
 import 'package:inkbattle_frontend/models/user_model.dart';
+import 'package:inkbattle_frontend/utils/preferences/local_preferences.dart';
 import 'package:inkbattle_frontend/services/ad_service.dart';
 import 'package:inkbattle_frontend/utils/lang.dart';
 import 'package:inkbattle_frontend/widgets/persistent_banner_ad_widget.dart';
@@ -28,6 +29,7 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   static const String _logTag = 'HomeScreen';
+  static Future<bool>? _pendingEnsureGuest;
   final UserRepository _userRepository = UserRepository();
   UserModel? _currentUser;
   bool _isLoading = true;
@@ -99,6 +101,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   Future<void> _loadUserData({bool forceRefresh = false}) async {
     try {
+      // Lazy guest: ensure guest on server once (only Home calls this; guard avoids duplicate requests)
+      if (LocalStorageUtils.hasPendingGuest()) {
+        _pendingEnsureGuest ??= _userRepository.ensureGuest();
+        await _pendingEnsureGuest;
+        _pendingEnsureGuest = null; // allow next session to ensure again if needed
+      }
+
       // First, always try to load from local storage for immediate update
       final localUser = await _userRepository.getUserLocally();
       if (localUser != null && mounted) {

@@ -79,12 +79,11 @@ class _SplashScreenState extends State<SplashScreen> {
           },
         );
       } else {
-        // No token, go to sign in
-        NativeLogService.log(
-          'No token found, navigating to sign in',
-          tag: _logTag,
-          level: 'debug',
-        );
+        // No token: if pending guest, go to Home (only Home calls ensureGuest to avoid duplicate requests)
+        if (LocalStorageUtils.hasPendingGuest()) {
+          if (mounted) context.go(Routes.homeScreen);
+          return;
+        }
         if (mounted) context.go(Routes.signInScreen);
       }
     } catch (e) {

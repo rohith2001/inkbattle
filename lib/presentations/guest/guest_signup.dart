@@ -1004,26 +1004,28 @@ class _GuestSignUpScreenState extends State<GuestSignUpScreen>
         AppLocalizations.setLanguage(languageCode);
       }
 
-      final result = await _userRepository.guestSignup(
+      // Lazy creation: save pending guest locally; no DB row until first server action (e.g. getMe, join room).
+      final pending = LocalStorageUtils.getPendingGuest();
+      final localGuestId = pending?['localGuestId'] ??
+          'g_${DateTime.now().millisecondsSinceEpoch}_${random.nextInt(999999)}';
+      await LocalStorageUtils.savePendingGuest(
+        localGuestId: localGuestId,
         name: username,
         avatar: selectedProfilePhoto,
         language: languageCode,
         country: selectedCountry,
       );
 
-      result.fold(
-        (failure) {
-          if (!mounted) return;
-          NativeLogService.log('Guest signup failed: ${failure.message}', tag: _logTag, level: 'error');
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(failure.message)));
-        },
-        (authResponse) {
-          if (!mounted) return;
-          NativeLogService.log('Guest signup success', tag: _logTag, level: 'debug');
-          _pageController.nextPage(duration: const Duration(milliseconds: 400), curve: Curves.easeInOut);
-        },
-      );
-    } catch (e) {}
+      if (!mounted) return;
+      NativeLogService.log('Guest pending saved (lazy creation)', tag: _logTag, level: 'debug');
+      _pageController.nextPage(duration: const Duration(milliseconds: 400), curve: Curves.easeInOut);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${AppLocalizations.error}: $e')));
+      }
+    } finally {
+      if (mounted) setState(() => _isSubmitting = false);
+    }
   }
 
   Widget _buildGradientDropdown({

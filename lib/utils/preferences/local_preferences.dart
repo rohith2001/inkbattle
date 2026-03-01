@@ -56,8 +56,55 @@ class LocalStorageUtils {
     }
   }
 
+  // Pending guest (lazy creation: no DB row until first server action)
+  static const String _keyLocalGuestId = 'local_guest_id';
+  static const String _keyGuestName = 'guest_name';
+  static const String _keyGuestAvatar = 'guest_avatar';
+  static const String _keyGuestLanguage = 'guest_language';
+  static const String _keyGuestCountry = 'guest_country';
+
+  static Future<void> savePendingGuest({
+    required String localGuestId,
+    required String name,
+    String? avatar,
+    String? language,
+    String? country,
+  }) async {
+    await instance.setString(_keyLocalGuestId, localGuestId);
+    await instance.setString(_keyGuestName, name);
+    if (avatar != null) await instance.setString(_keyGuestAvatar, avatar);
+    if (language != null) await instance.setString(_keyGuestLanguage, language);
+    if (country != null) await instance.setString(_keyGuestCountry, country);
+  }
+
+  static Map<String, String?>? getPendingGuest() {
+    final id = instance.getString(_keyLocalGuestId);
+    if (id == null || id.isEmpty) return null;
+    return {
+      'localGuestId': id,
+      'name': instance.getString(_keyGuestName) ?? 'Guest',
+      'avatar': instance.getString(_keyGuestAvatar),
+      'language': instance.getString(_keyGuestLanguage),
+      'country': instance.getString(_keyGuestCountry),
+    };
+  }
+
+  static bool hasPendingGuest() {
+    final id = instance.getString(_keyLocalGuestId);
+    return id != null && id.isNotEmpty;
+  }
+
+  static Future<void> clearPendingGuest() async {
+    await instance.remove(_keyLocalGuestId);
+    await instance.remove(_keyGuestName);
+    await instance.remove(_keyGuestAvatar);
+    await instance.remove(_keyGuestLanguage);
+    await instance.remove(_keyGuestCountry);
+  }
+
   static Future<void> clear() async {
     instance.remove('token');
+    await clearPendingGuest();
     await instance.clear();
   }
 
