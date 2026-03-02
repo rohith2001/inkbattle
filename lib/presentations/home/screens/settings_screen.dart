@@ -69,9 +69,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Widget build(BuildContext context) {
     bool isTablet = MediaQuery.of(context).size.width > 600;
 
-    return BlocProvider(
-      create: (context) => SettingsBloc()..add(SettingsInitialEvent()),
-      child: Scaffold(
+    return Scaffold(
         key: ValueKey(AppLocalizations
             .getCurrentLanguage()), // Force rebuild on language change
         backgroundColor: const Color(0xFF1A2A44),
@@ -247,108 +245,116 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ],
           ),
         ),
-      ),
     );
   }
 
-  Widget _buildButton(
-      BuildContext context,
-      String text,
-      IconData iconData,
-      VoidCallback onPressed,
-      bool soundControl,
-      ) {
-    final width = MediaQuery.of(context).size.width;
-    final bool isTablet = width >= 600;
+Widget _buildButton(
+  BuildContext context,
+  String text,
+  IconData iconData,
+  VoidCallback onPressed,
+  bool soundControl,
+) {
+  final width = MediaQuery.of(context).size.width;
+  final bool isTablet = width >= 600;
 
-    // ✅ DESIGN CONSTANTS - REFINED
-    final double maxWidth = isTablet ? 500 : 340; // Increased width slightly for better aspect ratio
-    final double height = isTablet ? 100 : 56; // Reduced tablet height from 100 to 72
-    final double iconSize = isTablet ? 35 : 24; // Adjusted icon size
-    final double fontSize = isTablet ? 30 : 16;
+  final double maxWidth = isTablet ? 500 : 340;
+  final double height = isTablet ? 100 : 56;
+  final double iconSize = isTablet ? 35 : 24;
+  final double fontSize = isTablet ? 30 : 16;
 
-    return Center(
-      child: ConstrainedBox(
-        constraints: BoxConstraints(
-          maxWidth: maxWidth,
-        ),
-        child: SizedBox(
-          height: height,
-          child: InkWell(
-            borderRadius: BorderRadius.circular(14),
-            onTap: soundControl ? null : onPressed,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 24),
-              decoration: BoxDecoration(
-                image: const DecorationImage(
-                  image: AssetImage(AppImages.bluebutton),
-                  fit: BoxFit.fill, // ❗ FIX: Changed to fill to prevent cutting
-                ),
-                borderRadius: BorderRadius.circular(14),
+  return Center(
+    child: ConstrainedBox(
+      constraints: BoxConstraints(maxWidth: maxWidth),
+      child: SizedBox(
+        height: height,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(14),
+          onTap: soundControl ? null : onPressed,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            decoration: BoxDecoration(
+              image: const DecorationImage(
+                image: AssetImage(AppImages.bluebutton),
+                fit: BoxFit.fill,
               ),
-              child: Row(
-                children: [
-                  // ICON
-                  if (soundControl)
-                    BlocBuilder<SettingsBloc, SettingsState>(
-                      builder: (_, state) {
-                        IconData icon;
-                        if (state.soundValue == 0) {
-                          icon = Icons.volume_off;
-                        } else if (state.soundValue < 0.5) {
-                          icon = Icons.volume_down;
-                        } else {
-                          icon = Icons.volume_up;
-                        }
-                        return Icon(icon, color: Colors.white, size: iconSize);
-                      },
-                    )
-                  else
-                    Icon(iconData, color: Colors.white, size: iconSize),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Row(
+              children: [
 
-                  const SizedBox(width: 24),
+                /// ICON
+                if (soundControl)
+                  BlocSelector<SettingsBloc, SettingsState, double>(
+                    selector: (state) => state.soundValue,
+                    builder: (_, soundValue) {
 
-                  // TEXT
-                  Expanded(
-                    child: Text(
-                      text,
-                      style: GoogleFonts.lato(
+                      final icon = soundValue == 0
+                          ? Icons.volume_off
+                          : soundValue < 0.5
+                              ? Icons.volume_down
+                              : Icons.volume_up;
+
+                      return Icon(
+                        icon,
                         color: Colors.white,
-                        fontSize: fontSize,
-                        fontWeight: FontWeight.w600,
-                      ),
+                        size: iconSize,
+                      );
+                    },
+                  )
+                else
+                  Icon(iconData,
+                      color: Colors.white,
+                      size: iconSize),
+
+                const SizedBox(width: 24),
+
+                /// TEXT
+                Expanded(
+                  child: Text(
+                    text,
+                    style: GoogleFonts.lato(
+                      color: Colors.white,
+                      fontSize: fontSize,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
+                ),
 
-                  // SLIDER
-                  if (soundControl)
-                    SizedBox(
-                      width: isTablet ? 140 : 100,
-                      child: BlocBuilder<SettingsBloc, SettingsState>(
-                        builder: (_, state) {
-                          return Slider(
-                            value: state.soundValue.clamp(0.0, 1.0),
-                            onChanged: (v) {
-                              context
-                                  .read<SettingsBloc>()
-                                  .add(UpdateSoundValue(v.clamp(0.0, 1.0)));
-                            },
-                            min: 0.0,
-                            max: 1.0,
-                            activeColor: Colors.white,
-                            inactiveColor: Colors.white30,
-                          );
-                        },
-                      ),
+                /// SLIDER
+                if (soundControl)
+                  SizedBox(
+                    width: isTablet ? 140 : 100,
+                    child: BlocSelector<SettingsBloc, SettingsState, double>(
+                      selector: (state) => state.soundValue,
+                      builder: (context, soundValue) {
+                        return Slider(
+                          value: soundValue,
+                          min: 0.0,
+                          max: 1.0,
+
+                          /// ⭐ reduces event spam dramatically
+                          divisions: 20,
+
+                          activeColor: Colors.white,
+                          inactiveColor: Colors.white30,
+                          onChanged: (v) {
+                            context
+                                .read<SettingsBloc>()
+                                .add(UpdateSoundValue(v));
+                          },
+                        );
+                      },
                     ),
-                ],
-              ),
+                  ),
+              ],
             ),
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
   Future<void> _handleLogout(BuildContext context) async {
     // Show confirmation dialog

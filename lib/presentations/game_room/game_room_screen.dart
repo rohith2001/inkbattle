@@ -327,31 +327,30 @@ class _GameRoomScreenState extends State<GameRoomScreen>
   bool _showOptionMenu = false;
   static const String _drawerMessagePrefix = 'drawer_message:';
 
-  final List<_DrawerMessageOption> _drawerMessageOptions =
-      const <_DrawerMessageOption>[
+  List<_DrawerMessageOption> get _drawerMessageOptions => [
     _DrawerMessageOption(
-      key: 'correct',
-      label: 'Correct',
+      key: AppLocalizations.correct,
+      label: AppLocalizations.correct,
       iconPath: AppImages.messageCorrect,
-      accentColor: Color(0xFF3EE07F),
+      accentColor: const Color(0xFF3EE07F),
     ),
     _DrawerMessageOption(
-      key: 'wrong',
-      label: 'Wrong',
+      key: AppLocalizations.wrong,
+      label: AppLocalizations.wrong,
       iconPath: AppImages.messageWrong,
-      accentColor: Color(0xFFE53935),
+      accentColor: const Color(0xFFE53935),
     ),
     _DrawerMessageOption(
-      key: 'break_word',
-      label: 'Break Word',
+      key: AppLocalizations.breakWord,
+      label: AppLocalizations.breakWord,
       iconPath: AppImages.messageBreakWord,
-      accentColor: Color(0xFF57C6FF),
+      accentColor: const Color(0xFF57C6FF),
     ),
     _DrawerMessageOption(
-      key: 'alternate',
-      label: 'Alternate',
+      key: AppLocalizations.alternate,
+      label: AppLocalizations.alternate,
       iconPath: AppImages.messageAlternate,
-      accentColor: Color(0xFFFFC857),
+      accentColor: const Color(0xFFFFC857),
     ),
   ];
   final universalBorder =
@@ -3033,7 +3032,7 @@ class _GameRoomScreenState extends State<GameRoomScreen>
     _socketService.onGameEndedInsufficientPlayers((data) {
       if (mounted) {
         _stopGameTimers();
-        final message = data['message'] ?? 'Not enough players. Exiting room.';
+        final message = data['message'] ?? AppLocalizations.notEnoughPlayersExitingRoom;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(message),
@@ -3051,7 +3050,7 @@ class _GameRoomScreenState extends State<GameRoomScreen>
       if (mounted) {
         _stopGameTimers();
         final message = data['message'] ??
-            'Exited as you were not active for more than 90 seconds.';
+            AppLocalizations.exitedInactive90Seconds;
         _showCloseAdAndNavigate(
           snackbarThenGoHome: message,
         );
@@ -3083,7 +3082,7 @@ class _GameRoomScreenState extends State<GameRoomScreen>
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(
-                  'Room closed: ${data['message'] ?? 'No active participants'}'),
+                  '${AppLocalizations.roomClosed} ${data['message'] ?? AppLocalizations.noActiveParticipants}'),
               backgroundColor: Colors.orange,
             ),
           );
@@ -3099,7 +3098,7 @@ class _GameRoomScreenState extends State<GameRoomScreen>
     _socketService.socket?.on('error', (data) {
       
       if (mounted) {
-        final message = data['message'] ?? 'Unknown error';
+        final message = data['message'] ?? AppLocalizations.unknownError;
         final details = data['details'] ?? '';
 
         // Suppress "room_not_found" errors during resume - they're often false positives
@@ -3116,60 +3115,60 @@ class _GameRoomScreenState extends State<GameRoomScreen>
         String errorMessage = '';
         switch (message) {
           case 'only_owner_can_start':
-            errorMessage = 'Only the host can start the game';
+            errorMessage = AppLocalizations.onlyHostCanStartGame;
             break;
           case 'not_enough_players':
-            errorMessage = 'Need at least 2 players to start';
+            errorMessage = AppLocalizations.needAtLeast2PlayersToStart;
             break;
           case 'insufficient_coins':
             errorMessage =
-                details.isNotEmpty ? details : 'Insufficient coins to start';
+                details.isNotEmpty ? details : AppLocalizations.insufficientCoinsToStart;
             break;
           case 'both_teams_need_players':
             errorMessage = details.isNotEmpty
                 ? details
-                : 'Both teams need at least 2 players to start.';
+                : AppLocalizations.bothTeamsNeedPlayers;
             break;
           case 'not_all_ready':
             errorMessage = details.isNotEmpty
                 ? details
-                : 'All players must tap Ready before the host can start.';
+                : AppLocalizations.allPlayersMustTapReadyBeforeHost;
             break;
           case 'only_owner_can_remove':
-            errorMessage = 'Only the host can remove players.';
+            errorMessage = AppLocalizations.onlyHostCanRemovePlayers;
             break;
           case 'cannot_remove_during_game':
-            errorMessage = 'Cannot remove players during the game.';
+            errorMessage = AppLocalizations.cannotRemovePlayersDuringGame;
             break;
           case 'not_team_mode':
             errorMessage = details.isNotEmpty
                 ? details
-                : 'Team selection is only available in team vs team mode. Please change the game mode first.';
+                : AppLocalizations.teamSelectionOnlyInTeamMode;
             break;
           case 'game_already_started':
-            errorMessage = 'Game has already started';
+            errorMessage = AppLocalizations.gameAlreadyStarted;
             break;
           case 'not_authenticated':
-            errorMessage = 'Authentication error. Please reconnect.';
+            errorMessage = AppLocalizations.authenticationErrorReconnect;
             break;
           case 'you_were_replaced':
             errorMessage = details.toString().isNotEmpty
                 ? details.toString()
-                : 'Due to inactivity, someone replaced you in this room.';
+                : AppLocalizations.replacedDueToInactivity;
             break;
           case 'room_full':
             errorMessage = details.toString().isNotEmpty
                 ? details.toString()
-                : 'Room is full. Max players reached.';
+                : AppLocalizations.roomFullMaxPlayers;
             break;
           case 'you_are_banned':
-            errorMessage = 'You are banned from this room.';
+            errorMessage = AppLocalizations.youAreBannedFromRoom;
             break;
           case 'room_not_found':
-            errorMessage = 'Room no longer exists. Leaving.';
+            errorMessage = AppLocalizations.roomNoLongerExistsLeaving;
             break;
           default:
-            errorMessage = 'Error: $message';
+            errorMessage = '${AppLocalizations.error}: $message';
         }
         if (mounted) {
           snackbarKey.currentState!.showSnackBar(
@@ -3672,7 +3671,7 @@ class _GameRoomScreenState extends State<GameRoomScreen>
                       barrierDismissible: false,
                       builder: (BuildContext exitCtx) {
                         return ExitPopUp(
-                          text: "Do you really want to leave the room?",
+                          text: AppLocalizations.doYouReallyWantToLeaveRoom,
                           imagePath: AppImages.inactiveexit,
                           onExit: () {
                             Navigator.of(exitCtx).pop();
@@ -3783,7 +3782,7 @@ class _GameRoomScreenState extends State<GameRoomScreen>
                   barrierDismissible: false,
                   builder: (BuildContext exitCtx) {
                     return ExitPopUp(
-                      text: "Do you really want to leave the room?",
+                      text: AppLocalizations.doYouReallyWantToLeaveRoom,
                       imagePath: AppImages.inactiveexit,
                       onExit: () {
                         Navigator.of(exitCtx).pop();
@@ -5815,7 +5814,7 @@ class _GameRoomScreenState extends State<GameRoomScreen>
       barrierDismissible: false,
       builder: (BuildContext context) {
         return ExitPopUp(
-          text: "Do you really want to leave the room?",
+          text: AppLocalizations.doYouReallyWantToLeaveRoom,
           imagePath: AppImages.inactiveexit,
           onExit: () {
             // This method handles leaving the room and navigating home
@@ -5833,7 +5832,6 @@ class _GameRoomScreenState extends State<GameRoomScreen>
   Widget _buildLobbyScreen() {
     final bool isTablet = MediaQuery.of(context).size.width > 600;
     final isOwner = _currentUser?.id == _room?.ownerId;
-    final double backIconSize = isTablet ? 28.sp : 20.sp;
 
     // Filter out current user from participants list
 
@@ -5850,7 +5848,7 @@ class _GameRoomScreenState extends State<GameRoomScreen>
                   GestureDetector(
                     onTap: _showExitDialog,
                     child: Icon(Icons.arrow_back_ios,
-                        color: Colors.white, size: backIconSize),
+                        color: Colors.white, size: 20.sp),
                   ),
                 ],
               ),
@@ -5873,11 +5871,10 @@ class _GameRoomScreenState extends State<GameRoomScreen>
                           children: [
                             _buildGradientDropdown(
                               width: controlWidth,
-                              hint: 'Word Theme',
+                              hint: AppLocalizations.wordTheme,
                               value: selectedLanguage,
                               items: languages,
                               icon: Icons.language,
-                              isTablet: isTablet,
                               onChanged: isOwner
                                   ? (v) {
                                       setState(() {
@@ -5905,7 +5902,6 @@ class _GameRoomScreenState extends State<GameRoomScreen>
                                 value: selectedScript,
                                 items: scripts,
                                 icon: Icons.text_fields,
-                                isTablet: isTablet,
                                 onChanged: isOwner
                                     ? (v) {
                                         setState(() => selectedScript = v);
@@ -5917,13 +5913,12 @@ class _GameRoomScreenState extends State<GameRoomScreen>
                             if (_isEnglishLanguage(selectedLanguage))
                               _buildGradientDropdown(
                                 width: controlWidth,
-                                hint: 'Word Script',
-                                value: 'Default',
-                                items: const <String>[
-                                  'Word Script: English (auto)'
+                                hint: AppLocalizations.wordScript,
+                                value: '${AppLocalizations.wordScript}: ${AppLocalizations.english}',
+                                items: <String>[
+                                  '${AppLocalizations.wordScript}: ${AppLocalizations.english}'
                                 ],
                                 icon: Icons.text_fields,
-                                isTablet: isTablet,
                                 onChanged: null,
                               ),
                             SizedBox(
@@ -5938,7 +5933,7 @@ class _GameRoomScreenState extends State<GameRoomScreen>
                                           _updateSettings();
                                         }
                                       : (_) {},
-                                  hintText: 'Country',
+                                  hintText: AppLocalizations.country,
                                   icon: Icons.flag,
                                   isTablet: isTablet,
                                 ),
@@ -5946,13 +5941,12 @@ class _GameRoomScreenState extends State<GameRoomScreen>
                             ),
                             _buildGradientDropdown(
                               width: controlWidth,
-                              hint: 'Points',
+                              hint: AppLocalizations.points,
                               value: (selectedPoints ?? 100).toString(),
                               items: pointsOptions
                                   .map((e) => e.toString())
                                   .toList(),
                               icon: Icons.stars,
-                              isTablet: isTablet,
                               onChanged: isOwner
                                   ? (v) {
                                       setState(() => selectedPoints =
@@ -5963,11 +5957,10 @@ class _GameRoomScreenState extends State<GameRoomScreen>
                             ),
                             _buildMultiSelectCategoryDropdown(
                               width: controlWidth,
-                              hint: 'Category',
+                              hint: AppLocalizations.category,
                               selectedValues: selectedCategories,
                               items: categories,
                               icon: Icons.category,
-                              isTablet: isTablet,
                               onChanged: isOwner
                                   ? (v) {
                                       setState(() => selectedCategories = v);
@@ -5978,7 +5971,6 @@ class _GameRoomScreenState extends State<GameRoomScreen>
                             _buildGameModeGradientDropdown(
                               width: controlWidth,
                               isOwner: isOwner,
-                              isTablet: isTablet,
                             ),
                             // _buildCheckboxField(
                             //   width: controlWidth,
@@ -5993,9 +5985,8 @@ class _GameRoomScreenState extends State<GameRoomScreen>
                             // ),
                             _buildToggleField(
                               width: controlWidth,
-                              title: 'Public',
+                              title: AppLocalizations.public,
                               value: isPublic,
-                              isTablet: isTablet,
                               onChanged: isOwner
                                   ? (v) {
                                       setState(() => isPublic = v);
@@ -6089,7 +6080,7 @@ class _GameRoomScreenState extends State<GameRoomScreen>
                                       _speakingUserIds.contains(userId);
 
                                   return Padding(
-                                    padding: EdgeInsets.only(bottom: 16.h),
+                                    padding: EdgeInsets.only(bottom: 14.h),
                                     child: Row(
                                       children: [
                                         // Avatar with conditional border and speaking indicator
@@ -6487,13 +6478,13 @@ class _GameRoomScreenState extends State<GameRoomScreen>
                               Icon(
                                 (_currentParticipant?.ready == true) ? Icons.check_circle : Icons.touch_app,
                                 color: (_currentParticipant?.ready == true) ? Colors.green : Colors.white70,
-                                size: isTablet ? 24.sp : 20.sp,
+                                size: 20.sp,
                               ),
                               SizedBox(width: 8.w),
                               Text(
                                 (_currentParticipant?.ready == true) ? 'Ready ✓ (tap to unready)' : 'Tap when ready',
                                 style: TextStyle(
-                                  fontSize: isTablet ? 18.sp : 16.sp,
+                                  fontSize: 16.sp,
                                   fontWeight: FontWeight.w600,
                                   color: Colors.white,
                                 ),
@@ -6553,12 +6544,12 @@ class _GameRoomScreenState extends State<GameRoomScreen>
                                 ? Icon(
                                     Icons.rocket_launch,
                                     color: Colors.white,
-                                    size: isTablet ? 32.sp : 25.h,
+                                    size: 25.h,
                                   )
                                 : Image.asset(
                                     AppImages.gameCoin,
-                                    height: isTablet ? 32.sp : 25.h,
-                                    width: isTablet ? 32.sp : 25.h,
+                                    height: 25.h,
+                                    width: 25.w,
                                     fit: BoxFit.contain,
                                   ),
                               SizedBox(width: 8.w),
@@ -6567,15 +6558,15 @@ class _GameRoomScreenState extends State<GameRoomScreen>
                                     ? "Let's go! Room is live"
                                     : '${_calculateEntryCost()}',
                                 style: TextStyle(
-                                  fontSize: isTablet ? 22.sp : 18.sp,
+                                  fontSize: 18.sp,
                                   fontWeight: FontWeight.w600,
                                   color: Colors.white,
                                 ),
                               ),
                             ],
                           ),
+                        ),
                       ),
-                    ),
 
                     // Minimal bottom padding before ad
                     SizedBox(height: 4.h),
@@ -6636,7 +6627,7 @@ class _GameRoomScreenState extends State<GameRoomScreen>
               onTap: _copyRoomCode,
               child: Container(
                 height: 38.h,
-                padding: EdgeInsets.symmetric(horizontal: 6.w, vertical: 02.h),
+                padding: EdgeInsets.symmetric(horizontal: 6.w, vertical: 2.h),
                 decoration: BoxDecoration(
                   color: Colors.transparent,
                   border: Border.all(color: Colors.white, width: 2.w),
@@ -6655,7 +6646,7 @@ class _GameRoomScreenState extends State<GameRoomScreen>
                         ),
                         height: 40.h,
                         padding: EdgeInsets.symmetric(
-                            horizontal: 00.w, vertical: 5.h),
+                            horizontal: 0.w, vertical: 5.h),
                         child: Center(
                           child: Text(
                             _room?.code ?? 'ad234',
@@ -6713,7 +6704,6 @@ class _GameRoomScreenState extends State<GameRoomScreen>
                             : null,
                         child: Container(
                           height: 30.h,
-                          // width: 30.w,
                           decoration: BoxDecoration(
                               color: Colors.black.withOpacity(0.5),
                               borderRadius: BorderRadius.only(
@@ -6749,7 +6739,6 @@ class _GameRoomScreenState extends State<GameRoomScreen>
                               : null,
                           child: Container(
                             height: 30.h,
-                            // width: 30.w,
                             decoration: BoxDecoration(
                                 color: Colors.black.withOpacity(0.5),
                                 borderRadius: BorderRadius.only(
@@ -6764,8 +6753,6 @@ class _GameRoomScreenState extends State<GameRoomScreen>
               ],
             ),
           ),
-
-          // SizedBox(width: 6.w),
 
           // Team color arrows (enabled only in team mode) - Circular selection
           Expanded(
@@ -6841,15 +6828,13 @@ class _GameRoomScreenState extends State<GameRoomScreen>
     required List<String> items,
     required IconData icon,
     required ValueChanged<String?>? onChanged,
-    bool isTablet = false,
   }) {
     final GlobalKey tapKey = GlobalKey();
-    // Scale for tablet
-    final double iconSize = isTablet ? 32.sp : 25.h;
-    final double fontSize = isTablet ? 18.sp : 14.sp;
-    final double height = isTablet ? 60.h : 45.h;
-    final double arrowSize = isTablet ? 24.sp : 16.sp;
-    
+    final double iconSize = 25.h;
+    final double fontSize = 14.sp;
+    final double height = 45.h;
+    final double arrowSize = 16.sp;
+
     return SizedBox(
       width: width,
       height: height,
@@ -6992,7 +6977,6 @@ class _GameRoomScreenState extends State<GameRoomScreen>
     required List<String> items,
     required IconData icon,
     required ValueChanged<List<String>>? onChanged,
-    bool isTablet = false,
   }) {
     final GlobalKey tapKey = GlobalKey();
     final displayText = selectedValues.isEmpty
@@ -7000,12 +6984,11 @@ class _GameRoomScreenState extends State<GameRoomScreen>
         : selectedValues.length == 1
             ? _getLocalizedDisplayValue(selectedValues.first)
             : '${selectedValues.length} ${_getLocalizedDisplayValue('selected')}';
-    
-    // Scale icons for tablet
-    final double iconSize = isTablet ? 32.sp : 25.h; 
-    final double fontSize = isTablet ? 18.sp : 14.sp;
-    final double height = isTablet ? 60.h : 45.h;
-    final double arrowSize = isTablet ? 24.sp : 16.sp;
+
+    final double iconSize = 25.h;
+    final double fontSize = 14.sp;
+    final double height = 45.h;
+    final double arrowSize = 16.sp;
 
     return SizedBox(
       width: width,
@@ -7484,7 +7467,6 @@ class _GameRoomScreenState extends State<GameRoomScreen>
   Widget _buildGameModeGradientDropdown({
     required double width,
     required bool isOwner,
-    bool isTablet = false,
   }) {
     final GlobalKey tapKey = GlobalKey();
     final String? displayValue = selectedGameMode == '1v1'
@@ -7493,11 +7475,10 @@ class _GameRoomScreenState extends State<GameRoomScreen>
             ? 'team_vs_team'
             : null;
 
-    // Scale icons for tablet
-    final double iconSize = isTablet ? 32.sp : 25.h; 
-    final double fontSize = isTablet ? 18.sp : 14.sp;
-    final double height = isTablet ? 60.h : 45.h;
-    final double arrowSize = isTablet ? 24.sp : 16.sp;
+    final double iconSize = 25.h;
+    final double fontSize = 14.sp;
+    final double height = 45.h;
+    final double arrowSize = 16.sp;
 
     return SizedBox(
       width: width,
@@ -7723,11 +7704,10 @@ class _GameRoomScreenState extends State<GameRoomScreen>
     required String title,
     required bool value,
     required ValueChanged<bool> onChanged,
-    bool isTablet = false,
   }) {
-    final double iconSize = isTablet ? 32.sp : 20.sp; 
-    final double fontSize = isTablet ? 18.sp : 14.sp;
-    final double height = isTablet ? 60.h : 45.h;
+    final double iconSize = 20.sp;
+    final double fontSize = 14.sp;
+    final double height = 45.h;
 
     return SizedBox(
       width: width,
@@ -7759,8 +7739,8 @@ class _GameRoomScreenState extends State<GameRoomScreen>
                 onTap: () => onChanged(!value),
                 child: Image.asset(
                   value ? AppImages.boxtoggleon : AppImages.boxtoggleoff,
-                  width: isTablet ? 45.w : 30.w,
-                  height: isTablet ? 50.h : 35.h,
+                  width: 30.w,
+                  height: 35.h,
                   fit: BoxFit.contain,
                 ),
               ),
@@ -8103,7 +8083,7 @@ class _GameRoomScreenState extends State<GameRoomScreen>
                         _updateSettings();
                       }
                     : (_) {},
-                hintText: 'Country',
+                hintText: AppLocalizations.country,
                 icon: Icons.flag,
                 isTablet: isTablet,
               ),
@@ -8112,7 +8092,7 @@ class _GameRoomScreenState extends State<GameRoomScreen>
             Expanded(
                 child: _buildLobbyDropdown(
               icon: Icons.stars,
-              hint: 'Points',
+              hint: AppLocalizations.points,
               value: selectedPoints?.toString(),
               items: pointsOptions.map((e) => e.toString()).toList(),
               enabled: isOwner,
@@ -8130,7 +8110,7 @@ class _GameRoomScreenState extends State<GameRoomScreen>
             Expanded(
                 child: _buildMultiSelectCategoryLobbyDropdown(
               icon: Icons.category,
-              hint: 'Category',
+              hint: AppLocalizations.category,
               selectedValues: selectedCategories,
               items: categories,
               enabled: isOwner,
@@ -8150,7 +8130,7 @@ class _GameRoomScreenState extends State<GameRoomScreen>
             Expanded(
                 child: _buildToggle(
               icon: Icons.mic,
-              label: 'Voice',
+              label: AppLocalizations.voice,
               value: voiceEnabled,
               enabled: isOwner,
               isTablet: isTablet,
@@ -8163,7 +8143,7 @@ class _GameRoomScreenState extends State<GameRoomScreen>
             Expanded(
                 child: _buildToggle(
               icon: Icons.public,
-              label: 'Public',
+              label: AppLocalizations.public,
               value: isPublic,
               enabled: isOwner,
               isTablet: isTablet,
@@ -8775,9 +8755,9 @@ class _GameRoomScreenState extends State<GameRoomScreen>
                   width: selectedTeam == 'orange' ? 3 : 1,
                 ),
               ),
-              child: const Center(
+              child: Center(
                 child: Text(
-                  'Team Orange',
+                  AppLocalizations.orangeTeam,
                   style: TextStyle(
                     color: Colors.orange,
                     fontWeight: FontWeight.bold,
@@ -8806,9 +8786,9 @@ class _GameRoomScreenState extends State<GameRoomScreen>
                   width: selectedTeam == 'blue' ? 3 : 1,
                 ),
               ),
-              child: const Center(
+              child: Center(
                 child: Text(
-                  'Team Blue',
+                  AppLocalizations.blueTeam,
                   style: TextStyle(
                     color: Colors.blue,
                     fontWeight: FontWeight.bold,
@@ -8933,7 +8913,7 @@ class _GameRoomScreenState extends State<GameRoomScreen>
         String dots = '.' * dotCount;
 
         return Text(
-          'Waiting for players $dots',
+          AppLocalizations.waitingForPlayers,
           style: TextStyle(
             color: Colors.white,
             fontSize: isTablet ? 18.sp : 16.sp,
@@ -12315,8 +12295,8 @@ class _GameRoomScreenState extends State<GameRoomScreen>
                                   ),
 
                                   // 5. Static text (Base style)
-                                  const TextSpan(
-                                    text: ' teammates guessed !',
+                                  TextSpan(
+                                    text: AppLocalizations.teammatesGuessed,
                                   ),
                                 ],
                               ),
@@ -12896,7 +12876,7 @@ class _GameRoomScreenState extends State<GameRoomScreen>
                                                     SizedBox(height: 4.h),
                                                     Text(
                                                       isCorrect
-                                                          ? "correct"
+                                                          ? AppLocalizations.correct
                                                           : message,
                                                       style: TextStyle(
                                                         color: isCorrect
@@ -13799,7 +13779,7 @@ class _GameRoomScreenState extends State<GameRoomScreen>
                                     ),
                                     SizedBox(height: 4.h),
                                     Text(
-                                      isCorrect ? "correct" : message,
+                                      isCorrect ? AppLocalizations.correct : message,
                                       style: TextStyle(
                                         color: isCorrect
                                             ? Colors.greenAccent

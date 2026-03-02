@@ -1,4 +1,6 @@
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:inkbattle_frontend/presentations/home/bloc/settings_bloc.dart';
 import 'package:inkbattle_frontend/presentations/home/screens/instructions.dart';
 import 'package:inkbattle_frontend/presentations/multiplayer/multiplayer_screen.dart';
 import 'package:inkbattle_frontend/presentations/multiplayer/one_vs_one.dart';
@@ -66,7 +68,10 @@ class Routes {
       ),
       GoRoute(
         path: settingsScreen,
-        builder: (context, state) => const SettingsScreen(),
+        builder: (context, state) => BlocProvider(
+          create: (_) => SettingsBloc()..add(SettingsInitialEvent()),
+          child: const SettingsScreen(),
+        ),
       ),
       GoRoute(
         path: guestSignupScreen,
