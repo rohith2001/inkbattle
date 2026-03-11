@@ -40,10 +40,15 @@ class SocketService {
   /// Returns true if a new socket was created (caller should register listeners once); false if reusing existing socket.
   bool connect(String token) {
     // Same token and socket exists: do nothing (socket may be disconnected; auto-reconnect will handle).
-    if (_socket != null && _lastToken == token) {
-      log('Socket already exists for same token; not replacing (reconnect the connection, not the socket)');
-      return false;
+  if (_socket != null && _lastToken == token) {
+    if (!_socket!.connected) {
+      log('Socket exists but disconnected → reconnecting');
+      _socket!.connect();   // actively re-open connection
+    } else {
+      log('Socket already connected');
     }
+    return false;           // reusing existing instance
+  }
 
     // Token changed or explicit new session: dispose old socket.
     if (_socket != null) {
@@ -138,13 +143,46 @@ class SocketService {
   }
 
   // Room events
-  void joinRoom(String roomId, {String? team}) {
+  /// Join a room using an acknowledged handshake. Returns the raw ack payload:
+  /// { ok: true, roomCode, roomId } on success, or { ok: false, error: '...' } on failure.
+  Future<Map<String, dynamic>> joinRoomWithAck(String roomId, {String? team}) {
+    final completer = Completer<Map<String, dynamic>>();
+    if (_socket == null || !_isConnected) {
+      completer.complete(<String, dynamic>{
+        'ok': false,
+        'error': 'not_connected',
+      });
+      return completer.future;
+    }
+
     final data = <String, dynamic>{'roomId': roomId};
     if (team != null) {
       data['team'] = team;
     }
-    _socket?.emit('join_room', data);
-    log('Joining room: $roomId${team != null ? ' with team: $team' : ''}');
+
+    _socket?.emitWithAck(
+      'join_room',
+      data,
+      ack: (response) {
+        try {
+          if (response is Map) {
+            completer.complete(Map<String, dynamic>.from(response));
+          } else {
+            completer.complete(<String, dynamic>{
+              'ok': false,
+              'error': 'invalid_ack',
+            });
+          }
+        } catch (e) {
+          completer.complete(<String, dynamic>{
+            'ok': false,
+            'error': 'ack_exception',
+          });
+        }
+      },
+    );
+    log('Joining room (with ack): $roomId${team != null ? ' with team: $team' : ''}');
+    return completer.future;
   }
 
   void leaveRoom(String roomId) {
