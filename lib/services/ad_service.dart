@@ -8,9 +8,9 @@ class AdService {
 
   // Android Ad Unit IDs
   static const String androidBannerAdUnitId =
-      'ca-app-pub-3940256099942544/6300978111';
+      'ca-app-pub-2111477197639109/9642912729';
   static const String androidRewardedAdUnitId =
-      'ca-app-pub-3940256099942544/5224354917';
+      'ca-app-pub-2111477197639109/2275191348';
 
   // iOS Ad Unit IDs
   static const String iosBannerAdUnitId =
