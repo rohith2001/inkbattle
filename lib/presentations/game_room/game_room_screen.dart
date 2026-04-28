@@ -440,6 +440,15 @@ class _GameRoomScreenState extends State<GameRoomScreen>
   Timer? _joinWatchdogTimer; // watchdog: room_joined must arrive within timeout after a successful ack
   GameConnectionState _connectionState = GameConnectionState.syncing; // ready only after room_joined (blocks actions during reconnect window)
 
+  /// Full-screen overlay until [GameConnectionState.ready]: first wait uses [_kInitialSocketConnectWait], then optional Retry (no HTTP create).
+  bool _socketBootstrapActive = false;
+  bool _awaitingSocketUserRetry = false;
+  bool _isRetrySocketConnecting = false;
+  /// True after HTTP leave was sent ([_leaveRoom] or [dispose] best-effort) so we do not double-call leave.
+  bool _leaveRoomHttpSent = false;
+
+  static const Duration _kInitialSocketConnectWait = Duration(seconds: 10);
+
   String? _wordHint;
   String? _currentWordForDashes; // Word length for dashes
 
@@ -1508,6 +1517,13 @@ class _GameRoomScreenState extends State<GameRoomScreen>
     final token = await LocalStorageUtils.fetchToken();
     if (token == null || token.isEmpty) return;
 
+    if (mounted) {
+      setState(() {
+        _socketBootstrapActive = true;
+        _awaitingSocketUserRetry = false;
+      });
+    }
+
     final didCreateSocket = _socketService.connect(token);
     // Register listeners only when a new socket was created (avoids duplicate listeners).
     // if (didCreateSocket) {
@@ -1524,7 +1540,7 @@ class _GameRoomScreenState extends State<GameRoomScreen>
     // ensures listeners are attached before any room_joined events arrive.
     final start = DateTime.now();
     while (!_socketService.isConnected &&
-        DateTime.now().difference(start) < const Duration(seconds: 5)) {
+        DateTime.now().difference(start) < _kInitialSocketConnectWait) {
       await Future.delayed(const Duration(milliseconds: 100));
     }
 
@@ -1532,10 +1548,17 @@ class _GameRoomScreenState extends State<GameRoomScreen>
       await _joinRoomIfNotRecent();
     } else {
       NativeLogService.log(
-        'Socket failed to connect within timeout; join_room deferred for roomId=${widget.roomId}',
+        'Socket failed to connect within ${_kInitialSocketConnectWait.inSeconds}s; stopping client and awaiting user Retry roomId=${widget.roomId}',
         tag: _logTag,
         level: 'error',
       );
+      // Stop auto-reconnect / background attempts until user taps Retry (same room, no new HTTP create).
+      _socketService.disconnect();
+      if (mounted) {
+        setState(() {
+          _awaitingSocketUserRetry = true;
+        });
+      }
     }
     _socketService.setOnDisconnect(() {
       if (mounted) setState(() => _connectionState = GameConnectionState.syncing);
@@ -1554,6 +1577,96 @@ class _GameRoomScreenState extends State<GameRoomScreen>
         if (mounted) setState(() => _rejoinInProgress = false);
       });
     });
+  }
+
+  Future<void> _onManualSocketRetryPressed() async {
+    if (_isRetrySocketConnecting || !mounted) return;
+    setState(() {
+      _isRetrySocketConnecting = true;
+      _awaitingSocketUserRetry = false;
+    });
+    try {
+      await _connectSocket();
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isRetrySocketConnecting = false;
+        });
+      }
+    }
+  }
+
+  /// Blocks lobby/game until socket + [room_joined], or Retry after initial wait (same room; no HTTP create).
+  Widget _buildSocketBootstrapPanel() {
+    return Material(
+      color: Colors.black54,
+      child: Center(
+        child: Padding(
+          padding: EdgeInsets.symmetric(horizontal: 28.w),
+          child: _awaitingSocketUserRetry
+              ? Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      AppLocalizations.gameServerUnreachableTitle,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 18.sp,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    SizedBox(height: 12.h),
+                    Text(
+                      AppLocalizations.gameServerUnreachableBody,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: Colors.white70,
+                        fontSize: 14.sp,
+                      ),
+                    ),
+                    SizedBox(height: 24.h),
+                    ElevatedButton(
+                      onPressed: _isRetrySocketConnecting
+                          ? null
+                          : () {
+                              unawaited(_onManualSocketRetryPressed());
+                            },
+                      child: _isRetrySocketConnecting
+                          ? SizedBox(
+                              width: 22.w,
+                              height: 22.w,
+                              child: const CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                          : Text(AppLocalizations.retry),
+                    ),
+                  ],
+                )
+              : Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const CircularProgressIndicator(color: Colors.white),
+                    SizedBox(height: 20.h),
+                    Text(
+                      AppLocalizations.gameServerUnreachableBody,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: Colors.white70,
+                        fontSize: 14.sp,
+                      ),
+                    ),
+                  ],
+                ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSocketBootstrapOverlayLayer() {
+    return Positioned.fill(child: _buildSocketBootstrapPanel());
   }
 
   /// Registers all socket listeners once. Same socket instance auto-reconnects on resume; no re-registration needed.
@@ -1597,6 +1710,8 @@ class _GameRoomScreenState extends State<GameRoomScreen>
           if (participants != null && participants.isNotEmpty) {
             _participants =
                 participants.map((p) => RoomParticipant.fromJson(p)).toList();
+          } else if (participants != null && participants.isEmpty) {
+            _participants = [];
           }
           if (room != null && room['status'] != null) {
             final roomStatus = room['status'] as String;
@@ -1671,6 +1786,9 @@ class _GameRoomScreenState extends State<GameRoomScreen>
             }
           }
           _connectionState = GameConnectionState.ready; // safe to interact after room_joined applied
+          _socketBootstrapActive = false;
+          _awaitingSocketUserRetry = false;
+          _isRetrySocketConnecting = false;
         });
         // When syncing to a playing room, clear any stuck compliment overlay (all phases including reveal, e.g. after resume)
         if (room != null && room['status'] == 'playing') {
@@ -3647,6 +3765,7 @@ class _GameRoomScreenState extends State<GameRoomScreen>
   }
 
   void _leaveRoom() async {
+    _leaveRoomHttpSent = true;
     _markLeftCurrentRoom();
     await _roomRepository.leaveRoom(roomId: widget.roomId);
     _socketService.leaveRoom(widget.roomId);
@@ -4674,6 +4793,21 @@ class _GameRoomScreenState extends State<GameRoomScreen>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    if (!_leaveRoomHttpSent && _room != null) {
+      _leaveRoomHttpSent = true;
+      unawaited(
+        _roomRepository.leaveRoom(roomId: widget.roomId).then((result) {
+          result.fold(
+            (f) => NativeLogService.log(
+              'Best-effort leaveRoom on dispose: ${f.message}',
+              tag: _logTag,
+              level: 'debug',
+            ),
+            (_) {},
+          );
+        }),
+      );
+    }
     _pointsAnimationController.dispose();
     _answerController.dispose();
     _chatController.dispose();
@@ -4807,7 +4941,15 @@ class _GameRoomScreenState extends State<GameRoomScreen>
       return wrapWithExitPopup(
         ShowCaseWidget(
           builder: (context) => Builder(builder: (innerContext) {
-              return _buildLobbyScreen();
+              return Stack(
+                fit: StackFit.expand,
+                children: [
+                  _buildLobbyScreen(),
+                  if (_socketBootstrapActive &&
+                      _connectionState != GameConnectionState.ready)
+                    _buildSocketBootstrapOverlayLayer(),
+                ],
+              );
             }),
           ),
         );
@@ -4901,11 +5043,24 @@ class _GameRoomScreenState extends State<GameRoomScreen>
   Widget _buildGameScreen() {
     // While resuming or not yet ready, show a full-screen loading view
     if (_isResuming || _connectionState != GameConnectionState.ready) {
-      return const Scaffold(
+      if (_isResuming) {
+        return const Scaffold(
+          backgroundColor: Colors.black,
+          body: Center(
+            child: CircularProgressIndicator(),
+          ),
+        );
+      }
+      return Scaffold(
         backgroundColor: Colors.black,
-        body: Center(
-          child: CircularProgressIndicator(), // or your custom loader
-        ),
+        body: _socketBootstrapActive
+            ? ColoredBox(
+                color: Colors.black,
+                child: _buildSocketBootstrapPanel(),
+              )
+            : const Center(
+                child: CircularProgressIndicator(),
+              ),
       );
     }
 

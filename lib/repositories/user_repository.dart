@@ -5,6 +5,7 @@ import 'package:inkbattle_frontend/utils/api/api_exceptions.dart';
 import 'package:inkbattle_frontend/utils/api/api_manager.dart';
 import 'package:inkbattle_frontend/utils/api/failure.dart';
 import 'package:inkbattle_frontend/utils/preferences/local_preferences.dart';
+import 'package:inkbattle_frontend/services/socket_service.dart';
 import 'dart:convert';
 
 class UserRepository {
@@ -40,6 +41,8 @@ class UserRepository {
       // Save token locally
       if (authResponse.token != null) {
         await LocalStorageUtils.saveUserDetails(authResponse.token!);
+        await LocalStorageUtils.clearPendingGuest();
+        SocketService().disconnect();
       }
 
       return right(authResponse);
@@ -81,6 +84,8 @@ class UserRepository {
       // Save token locally
       if (authResponse.token != null) {
         await LocalStorageUtils.saveUserDetails(authResponse.token!);
+        await LocalStorageUtils.clearPendingGuest();
+        SocketService().disconnect();
       }
 
       return right(authResponse);
@@ -159,6 +164,7 @@ class UserRepository {
 
       // Clear local storage
       await LocalStorageUtils.clear();
+      SocketService().disconnect();
       token = "";
 
       return right(true);
@@ -227,7 +233,12 @@ class UserRepository {
   /// Ensures a guest user exists on the server (lazy creation).
   /// If no token but pending guest prefs exist, creates/finds guest and saves token.
   Future<bool> ensureGuest() async {
-    if (await isLoggedIn()) return true;
+    if (await isLoggedIn()) {
+      if (LocalStorageUtils.hasPendingGuest()) {
+        await LocalStorageUtils.clearPendingGuest();
+      }
+      return true;
+    }
     final pending = LocalStorageUtils.getPendingGuest();
     if (pending == null) return false;
     final result = await guestSignup(

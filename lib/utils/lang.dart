@@ -83,6 +83,10 @@ class AppLocalizations {
       'well_done': 'Well Done!',
       'whos_next': "Who's Next?",
       'interval': 'Interval',
+      'game_server_unreachable_title': "Can't reach game server",
+      'game_server_unreachable_body':
+          'Check your network connection, then tap Retry to reconnect to this room.',
+      'retry': 'Retry',
       'host': 'Host',
       'you': 'You',
       'correct': 'Correct!',
@@ -7365,6 +7369,11 @@ class AppLocalizations {
   static String get waitingForPlayers => translate('waiting_for_players');
   static String get startGame => translate('start_game');
   static String get leave => translate('leave');
+  static String get gameServerUnreachableTitle =>
+      translate('game_server_unreachable_title');
+  static String get gameServerUnreachableBody =>
+      translate('game_server_unreachable_body');
+  static String get retry => translate('retry');
   static String get mode => translate('mode');
   static String get individual => translate('individual');
   static String get team => translate('team');

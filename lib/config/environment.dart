@@ -3,8 +3,8 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 class Environment {
   // --- Single source for default values (used when .env is missing or empty) ---
   // Real / staging values belong in .env only (not committed; see .env.example).
-  static const String _defaultApiBaseUrl = 'https://staging.inkbattle.in/api';
-  static const String _defaultSocketUrl = 'https://staging.inkbattle.in';
+  static const String _defaultApiBaseUrl = 'https://inkbattle.in/api';
+  static const String _defaultSocketUrl = 'https://inkbattle.in';
   static const String _defaultAgoraAppId = '85ed3bccf4dc4f62b3e30b834a0b5670';
   static const String _defaultGoogleWebClientId =
       '810403540241-ip9gtcb25f8m6f3du23riuqj5h5dbr9l.apps.googleusercontent.com';

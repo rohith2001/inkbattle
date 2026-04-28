@@ -185,10 +185,17 @@ class SocketService {
     return completer.future;
   }
 
+  /// Notify server then fully tear down the client so the old JWT cannot auto-reconnect
+  /// (avoids a stale socket identity after leaving the game UI or switching accounts).
   void leaveRoom(String roomId) {
-    _socket?.emit('leave_room', {'roomId': roomId});
-    log('Leaving room: $roomId');
-    _socket?.disconnect();
+    final s = _socket;
+    if (s != null) {
+      try {
+        s.emit('leave_room', {'roomId': roomId});
+      } catch (_) {}
+      log('Leaving room: $roomId');
+    }
+    disconnect();
   }
 
   // Drawing events
@@ -364,7 +371,7 @@ class SocketService {
 
   void onLobbyTimeExceeded(Function(dynamic) callback) {
     /*{
-      "roomCode": "ABCD12",
+      "roomCode": "ABC12",
       "message": "It looks like everyone left! Do you want to continue waiting or exit?",
       "duration": 120
     } */
