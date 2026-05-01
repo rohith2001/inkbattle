@@ -387,7 +387,10 @@ class _MultiplayerScreenState extends State<MultiplayerScreen> {
                           value: selectedLanguage,
                           items: languages,
                           onChanged: (val) {
-                            setState(() => selectedLanguage = val);
+                            setState(() {
+                              selectedLanguage = val;
+                              selectedScript = 'default';
+                            });
                             developer.log(
                               'Selected language: $selectedLanguage',
                               name: _logTag,
@@ -401,23 +404,34 @@ class _MultiplayerScreenState extends State<MultiplayerScreen> {
                       ),
                       SizedBox(width: isTablet ? 16.0 : 8.w),
                       Expanded(
-                        child: _buildFilterPill(
-                          image: null, // User requested Flutter icons
-                          icon: Icons.text_fields, // Better icon for "Script"
-                          value: selectedScript,
-                          items: scripts,
-                          onChanged: (val) {
-                            setState(() => selectedScript = val);
-                            developer.log(
-                              'Selected script: $selectedScript',
-                              name: _logTag,
-                            );
-                            _loadRooms();
-                          },
-                          hintText: AppLocalizations.script,
-                          iconColor: Colors.deepPurpleAccent,
-                          isTablet: isTablet,
-                        ),
+                        child: _isEnglishLanguage(selectedLanguage)
+                            ? _buildFilterPill(
+                                image: null,
+                                icon: Icons.text_fields,
+                                value: 'Default',
+                                items: const <String>['Word Script: English (auto)'],
+                                onChanged: null,
+                                hintText: AppLocalizations.script,
+                                iconColor: Colors.deepPurpleAccent,
+                                isTablet: isTablet,
+                              )
+                            : _buildFilterPill(
+                                image: null, // User requested Flutter icons
+                                icon: Icons.text_fields, // Better icon for "Script"
+                                value: selectedScript,
+                                items: scripts,
+                                onChanged: (val) {
+                                  setState(() => selectedScript = val);
+                                  developer.log(
+                                    'Selected script: $selectedScript',
+                                    name: _logTag,
+                                  );
+                                  _loadRooms();
+                                },
+                                hintText: AppLocalizations.script,
+                                iconColor: Colors.deepPurpleAccent,
+                                isTablet: isTablet,
+                              ),
                       ),
                     ],
                   ),
@@ -529,7 +543,7 @@ class _MultiplayerScreenState extends State<MultiplayerScreen> {
                           },
                           hintText: AppLocalizations.mode,
                           items: [
-                            AppLocalizations.team,
+                            // AppLocalizations.team,
                             AppLocalizations.individual
                           ],
                           iconColor: Colors.blueAccent,
@@ -632,6 +646,13 @@ class _MultiplayerScreenState extends State<MultiplayerScreen> {
     );
   }
 
+  // Helper method to check if language is English
+  bool _isEnglishLanguage(String? language) {
+    if (language == null) return false;
+    final normalized = language.toLowerCase();
+    return normalized == 'english' || normalized == 'en';
+  }
+
   // Helper widget for handling both Dropdowns and Static Toggles
   Widget _buildFilterPill({
     required IconData icon,
@@ -669,7 +690,7 @@ class _MultiplayerScreenState extends State<MultiplayerScreen> {
         child: InkWell(
           key: tapKey,
           borderRadius: BorderRadius.circular(25.r),
-          onTap: selectedLanguage == "English" && hintText == "Script"
+          onTap: (_isEnglishLanguage(selectedLanguage) && hintText == AppLocalizations.script) || (isDropdown && onChanged == null)
               ? null
               : isDropdown
                   ? () async {

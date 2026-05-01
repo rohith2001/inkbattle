@@ -468,7 +468,7 @@ class _GameRoomScreenState extends State<GameRoomScreen>
   List<String> selectedCategories = [];
   String? selectedGameMode = '1v1';
     bool voiceEnabled = false;
-  bool isPublic = false;
+  bool isPublic = true;
   int maxPlayers = 5;
   String? selectedTeam;
 
@@ -1492,17 +1492,25 @@ class _GameRoomScreenState extends State<GameRoomScreen>
       case 'not_authenticated':
         msg = AppLocalizations.authenticationErrorReconnect;
         break;
+      case 'not_enough_coins':
+        msg = AppLocalizations.notEnoughCoinsTopUp;
+        break;
       default:
         msg = '${AppLocalizations.error}: $error';
         break;
     }
-    snackbarKey.currentState?.showSnackBar(
-      SnackBar(
-        content: Text(msg),
-        backgroundColor: Colors.red,
-        duration: const Duration(seconds: 3),
-      ),
-    );
+
+    if (error == 'not_enough_coins') {
+      _showErrorToast(msg);
+    } else {
+      snackbarKey.currentState?.showSnackBar(
+        SnackBar(
+          content: Text(msg),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 3),
+        ),
+      );
+    }
     // Leave lobby and go home/join screen.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) _leaveRoom();
@@ -7810,7 +7818,7 @@ class _GameRoomScreenState extends State<GameRoomScreen>
                     builder: (context) => SelectionBottomSheet(
                       title: AppLocalizations.mode,
                       items: [
-                        AppLocalizations.team,
+                        // AppLocalizations.team,
                         AppLocalizations.individual,
                       ],
                       selectedItem: displayValue,
