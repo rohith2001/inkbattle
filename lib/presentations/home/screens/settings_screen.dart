@@ -13,6 +13,7 @@ import 'package:inkbattle_frontend/repositories/user_repository.dart';
 import 'package:inkbattle_frontend/utils/lang.dart';
 import 'package:inkbattle_frontend/logic/auth/google_auth_service.dart';
 import 'package:inkbattle_frontend/logic/auth/facebook_auth_service.dart';
+import 'package:inkbattle_frontend/logic/auth/apple_auth_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:inkbattle_frontend/widgets/persistent_banner_ad_widget.dart';
 import 'package:inkbattle_frontend/services/ad_service.dart';
@@ -32,6 +33,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   final UserRepository _userRepo = UserRepository();
   final GoogleAuthService _googleAuthService = GoogleAuthService();
   final FacebookAuthService _facebookAuthService = FacebookAuthService();
+  final AppleAuthService _appleAuthService = AppleAuthService();
   final instagramUrl = Uri.parse(
       'https://www.instagram.com/inkbattleofficial?igsh=MThvcDY5ZjhsbHRoaA==');
 
@@ -393,7 +395,20 @@ Widget _buildButton(
             ),
             TextButton(
               onPressed: () async {
-                await _userRepo.logout();
+                NativeLogService.log('Logout confirmed by user', tag: _logTag, level: 'debug');
+                final logoutResult = await _userRepo.logout();
+                logoutResult.fold(
+                  (failure) => NativeLogService.log(
+                    'Repository logout returned failure: ${failure.message}',
+                    tag: _logTag,
+                    level: 'error',
+                  ),
+                  (_) => NativeLogService.log(
+                    'Repository logout completed successfully',
+                    tag: _logTag,
+                    level: 'debug',
+                  ),
+                );
                 Navigator.of(dialogContext).pop(true);
               },
               child: Text(
@@ -411,16 +426,24 @@ Widget _buildButton(
     );
 
     if (shouldLogout == true) {
-      // Sign out from Google and Facebook
+      // Sign out from Google, Facebook and Apple
       try {
         await _googleAuthService.signOut();
+        NativeLogService.log('Google sign-out completed', tag: _logTag, level: 'debug');
       } catch (e) {
         NativeLogService.log('Error signing out from Google: $e', tag: _logTag, level: 'error');
       }
       try {
         await _facebookAuthService.signOut();
+        NativeLogService.log('Facebook sign-out completed', tag: _logTag, level: 'debug');
       } catch (e) {
         NativeLogService.log('Error signing out from Facebook: $e', tag: _logTag, level: 'error');
+      }
+      try {
+        await _appleAuthService.signOut();
+        NativeLogService.log('Apple sign-out completed', tag: _logTag, level: 'debug');
+      } catch (e) {
+        NativeLogService.log('Error signing out from Apple: $e', tag: _logTag, level: 'error');
       }
 
       // Clear all stored data - ensure everything is cleared
@@ -435,6 +458,7 @@ Widget _buildButton(
 
       // Navigate to sign in screen
       if (context.mounted) {
+        NativeLogService.log('Navigating to sign-in after logout cleanup', tag: _logTag, level: 'debug');
         context.go(Routes.signInScreen);
       }
     }

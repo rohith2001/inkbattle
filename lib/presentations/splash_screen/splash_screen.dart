@@ -50,7 +50,12 @@ class _SplashScreenState extends State<SplashScreen> {
     try {
       // Check if token exists
       final token = await LocalStorageUtils.fetchToken();
-      
+
+      NativeLogService.log(
+        'SplashScreen -> token: $token',
+        tag: _logTag,
+        level: 'debug',
+      );
       if (token != null && token.isNotEmpty && token.trim().isNotEmpty) {
         // Token exists, verify it's valid by fetching user
         final result = await _userRepository.getMe();

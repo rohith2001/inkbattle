@@ -41,6 +41,8 @@ class SocketService {
   bool connect(String token) {
     // Same token and socket exists: do nothing (socket may be disconnected; auto-reconnect will handle).
   if (_socket != null && _lastToken == token) {
+    // Ensure auth payload is always refreshed before reconnect attempts.
+    _socket!.auth = {'token': token};
     if (!_socket!.connected) {
       log('Socket exists but disconnected → reconnecting');
       _socket!.connect();   // actively re-open connection
@@ -68,7 +70,7 @@ class SocketService {
           .setTransports(['websocket'])
           .enableAutoConnect()
           .enableReconnection()
-          .disableForceNew()
+          .enableForceNew()
           .setAuth({'token': token})
           .setExtraHeaders({'X-App-Secret': Environment.appSecret})
           .build(),
@@ -164,6 +166,7 @@ class SocketService {
       'join_room',
       data,
       ack: (response) {
+        if (completer.isCompleted) return;
         try {
           if (response is Map) {
             completer.complete(Map<String, dynamic>.from(response));
@@ -182,7 +185,15 @@ class SocketService {
       },
     );
     log('Joining room (with ack): $roomId${team != null ? ' with team: $team' : ''}');
-    return completer.future;
+    return completer.future.timeout(
+      const Duration(seconds: 10),
+      onTimeout: () {
+        return <String, dynamic>{
+          'ok': false,
+          'error': 'ack_timeout',
+        };
+      },
+    );
   }
 
   /// Notify server then fully tear down the client so the old JWT cannot auto-reconnect

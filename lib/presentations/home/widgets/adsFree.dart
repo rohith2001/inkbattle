@@ -17,7 +17,8 @@ import '../../../main.dart';
 class AdsFreePopup extends StatefulWidget {
   final Function(dynamic)? onAdWatched;
   final BuildContext? parentContext;
-  final Function()? onPurchaseComplete; // Callback when purchase completes to refresh user data
+  final Function()?
+      onPurchaseComplete; // Callback when purchase completes to refresh user data
   const AdsFreePopup({
     super.key,
     this.onAdWatched,
@@ -28,7 +29,8 @@ class AdsFreePopup extends StatefulWidget {
   static void show(
     BuildContext context, {
     Function(dynamic)? onAdWatched,
-    Function()? onPurchaseComplete, // Callback to refresh user data after purchase
+    Function()?
+        onPurchaseComplete, // Callback to refresh user data after purchase
   }) {
     showDialog(
       context: context,
@@ -54,13 +56,15 @@ class _AdsFreePopupState extends State<AdsFreePopup> {
   bool _adLoadFailed = false;
   bool _shouldClaimReward = false;
   bool _isProcessingPayment = false;
-  
+
   // Platform-specific Product IDs for 8000 coins purchase
   // Android: Google Play Console product ID
   // iOS: App Store Connect product ID
-  static const String _androidProductId = 'coins_8000'; // Update with your Google Play Console product ID
-  static const String _iosProductId = 'coins_8000'; // Update with your App Store Connect product ID
-  
+  static const String _androidProductId =
+      'coins_8000'; // Update with your Google Play Console product ID
+  static const String _iosProductId =
+      'coins_8000'; // Update with your App Store Connect product ID
+
   // Get platform-specific product ID
   String get _coinsProductId {
     if (Platform.isAndroid) {
@@ -68,7 +72,8 @@ class _AdsFreePopupState extends State<AdsFreePopup> {
     } else if (Platform.isIOS) {
       return _iosProductId;
     } else {
-      throw UnsupportedError('In-app purchases are only supported on Android and iOS');
+      throw UnsupportedError(
+          'In-app purchases are only supported on Android and iOS');
     }
   }
 
@@ -78,7 +83,7 @@ class _AdsFreePopupState extends State<AdsFreePopup> {
     _initializeAndLoadAd();
     _initializeBilling();
   }
-  
+
   void _initializeBilling() {
     // Initialize billing service with purchase success and error handlers
     BillingService.init(
@@ -90,7 +95,7 @@ class _AdsFreePopupState extends State<AdsFreePopup> {
       },
     );
   }
-  
+
   void _handlePurchaseError(String error) {
     if (mounted) {
       setState(() {
@@ -104,7 +109,7 @@ class _AdsFreePopupState extends State<AdsFreePopup> {
       );
     }
   }
-  
+
   Future<void> _handlePurchaseSuccess(PurchaseDetails purchase) async {
     try {
       // Verify purchase and add coins to user account
@@ -112,13 +117,14 @@ class _AdsFreePopupState extends State<AdsFreePopup> {
         amount: 8000, // 8000 coins for this purchase
         reason: 'in_app_purchase',
       );
-      
+
       result.fold(
         (failure) {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                content: Text('${AppLocalizations.purchaseSuccessfulButFailedToAddCoins}${failure.message}'),
+                content: Text(
+                    '${AppLocalizations.purchaseSuccessfulButFailedToAddCoins}${failure.message}'),
                 backgroundColor: Colors.orange,
               ),
             );
@@ -132,10 +138,10 @@ class _AdsFreePopupState extends State<AdsFreePopup> {
             setState(() {
               _isProcessingPayment = false;
             });
-            
+
             // Close the dialog first
             Navigator.of(context).pop();
-            
+
             // Show success message and coin animation
             VideoRewardDialog.show(
               widget.parentContext ?? context,
@@ -172,15 +178,16 @@ class _AdsFreePopupState extends State<AdsFreePopup> {
     }
 
     if (!mounted) return;
-    
+
     setState(() {
       _isLoadingAd = true;
       _adLoadFailed = false;
     });
-    
+
     try {
-      print('🔄 Initializing and loading rewarded ad (attempt ${retryCount + 1})...');
-      
+      print(
+          '🔄 Initializing and loading rewarded ad (attempt ${retryCount + 1})...');
+
       // AdService.loadRewardedAd now handles initialization internally
       await AdService.loadRewardedAd(
         onAdLoaded: (ad) {
@@ -194,18 +201,20 @@ class _AdsFreePopupState extends State<AdsFreePopup> {
           }
         },
         onAdFailedToLoad: (error) {
-          print('❌ RewardedAd failed to load: ${error.code} - ${error.message}');
+          print(
+              '❌ RewardedAd failed to load: ${error.code} - ${error.message}');
           print('   Domain: ${error.domain}');
-          
+
           if (mounted) {
             setState(() {
               _isLoadingAd = false;
               _adLoadFailed = true;
             });
-            
+
             // Retry loading ad if it failed (max 2 retries)
             if (retryCount < 2) {
-              print('🔄 Retrying ad load in 2 seconds... (attempt ${retryCount + 2}/3)');
+              print(
+                  '🔄 Retrying ad load in 2 seconds... (attempt ${retryCount + 2}/3)');
               Future.delayed(const Duration(seconds: 2), () {
                 if (mounted) {
                   _initializeAndLoadAd(retryCount: retryCount + 1);
@@ -220,16 +229,17 @@ class _AdsFreePopupState extends State<AdsFreePopup> {
     } catch (e, stackTrace) {
       print('❌ Exception initializing/loading ads: $e');
       print('   Stack trace: $stackTrace');
-      
+
       if (mounted) {
         setState(() {
           _isLoadingAd = false;
           _adLoadFailed = true;
         });
-        
+
         // Retry on exception too (max 2 retries)
         if (retryCount < 2) {
-          print('🔄 Retrying ad load after exception in 2 seconds... (attempt ${retryCount + 2}/3)');
+          print(
+              '🔄 Retrying ad load after exception in 2 seconds... (attempt ${retryCount + 2}/3)');
           Future.delayed(const Duration(seconds: 2), () {
             if (mounted) {
               _initializeAndLoadAd(retryCount: retryCount + 1);
@@ -279,7 +289,7 @@ class _AdsFreePopupState extends State<AdsFreePopup> {
       }
       return;
     }
-    
+
     // Check platform support
     if (!Platform.isAndroid && !Platform.isIOS) {
       if (mounted) {
@@ -292,12 +302,12 @@ class _AdsFreePopupState extends State<AdsFreePopup> {
       }
       return;
     }
-    
+
     try {
       setState(() {
         _isProcessingPayment = true;
       });
-      
+
       // Check if in-app purchases are available
       final bool available = await InAppPurchase.instance.isAvailable();
       if (!available) {
@@ -305,7 +315,8 @@ class _AdsFreePopupState extends State<AdsFreePopup> {
           final platformName = Platform.isAndroid ? 'Google Play' : 'App Store';
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('${AppLocalizations.inAppPurchasesNotAvailable}$platformName.'),
+              content: Text(
+                  '${AppLocalizations.inAppPurchasesNotAvailable}$platformName.'),
               backgroundColor: Colors.red,
             ),
           );
@@ -315,14 +326,15 @@ class _AdsFreePopupState extends State<AdsFreePopup> {
         }
         return;
       }
-      
+
       // Get platform-specific product ID
       final productId = _coinsProductId;
-      print('Initiating purchase on ${Platform.isAndroid ? "Android" : "iOS"} with product ID: $productId');
-      
+      print(
+          'Initiating purchase on ${Platform.isAndroid ? "Android" : "iOS"} with product ID: $productId');
+
       // Initiate purchase
       await BillingService.buy(productId);
-      
+
       // Note: Purchase completion is handled in _handlePurchaseSuccess
       // The purchase stream will notify us when the purchase is complete
       // Dialog will be closed in _handlePurchaseSuccess after coins are added
@@ -332,7 +344,8 @@ class _AdsFreePopupState extends State<AdsFreePopup> {
         final platformName = Platform.isAndroid ? 'Google Play' : 'App Store';
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('${AppLocalizations.failedToInitiatePurchase}$platformName)'),
+            content: Text(
+                '${AppLocalizations.failedToInitiatePurchase}$platformName)'),
             backgroundColor: Colors.red,
           ),
         );
@@ -403,11 +416,11 @@ class _AdsFreePopupState extends State<AdsFreePopup> {
   Future<void> _watchAd() async {
     if (_rewardedAd == null) {
       print('⚠️ Ad is null, attempting to load...');
-      
+
       // Try to load ad one more time before giving up
       if (!_isLoadingAd) {
         _initializeAndLoadAd();
-        
+
         // Wait up to 5 seconds for ad to load
         int waitAttempts = 0;
         while (_rewardedAd == null && waitAttempts < 50 && mounted) {
@@ -415,7 +428,7 @@ class _AdsFreePopupState extends State<AdsFreePopup> {
           waitAttempts++;
         }
       }
-      
+
       if (_rewardedAd == null) {
         print('❌ Ad still not available after retry, using fallback');
         _simulateAdWatch();
@@ -501,7 +514,7 @@ class _AdsFreePopupState extends State<AdsFreePopup> {
     // Reload ad for next time
     _initializeAndLoadAd();
 
-    final result = await _userRepository.claimAdReward(adType: 'interstitial');
+    final result = await _userRepository.claimAdReward(adType: 'rewarded');
     return result.fold(
       (failure) {
         print('❌ Failed to claim reward: ${failure.message}');
