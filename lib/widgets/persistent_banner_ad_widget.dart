@@ -9,7 +9,8 @@ class PersistentBannerAdWidget extends StatefulWidget {
   const PersistentBannerAdWidget({super.key});
 
   @override
-  State<PersistentBannerAdWidget> createState() => _PersistentBannerAdWidgetState();
+  State<PersistentBannerAdWidget> createState() =>
+      _PersistentBannerAdWidgetState();
 }
 
 class _PersistentBannerAdWidgetState extends State<PersistentBannerAdWidget> {
@@ -24,35 +25,37 @@ class _PersistentBannerAdWidgetState extends State<PersistentBannerAdWidget> {
 
   @override
   Widget build(BuildContext context) {
-    // Check if banner ad is available
-    final bannerAd = AdService.getPersistentBannerAd();
-    final isLoaded = AdService.isBannerAdLoaded();
+    return ValueListenableBuilder<int>(
+      valueListenable: AdService.bannerStateNotifier,
+      builder: (context, _, __) {
+        final bannerAd = AdService.getPersistentBannerAd();
+        final isLoaded = AdService.isBannerAdLoaded();
 
-    if (isLoaded && bannerAd != null) {
-      return Container(
-        width: double.infinity,
-        height: 60.h,
-        color: Colors.black.withOpacity(0.3),
-        child: AdWidget(ad: bannerAd),
-      );
-    } else {
-      // Show loading placeholder while ad is loading
-      return Container(
-        width: double.infinity,
-        height: 60.h,
-        color: Colors.grey.withOpacity(0.2),
-        child: Center(
-          child: Text(
-            'Loading ads...',
-            style: TextStyle(
-              color: Colors.white70,
-              fontSize: 12.sp,
+        if (isLoaded && bannerAd != null) {
+          return Container(
+            width: double.infinity,
+            height: 60.h,
+            color: Colors.black.withOpacity(0.3),
+            child: AdWidget(ad: bannerAd),
+          );
+        }
+
+        // Show loading placeholder while ad is loading
+        return Container(
+          width: double.infinity,
+          height: 60.h,
+          color: Colors.grey.withOpacity(0.2),
+          child: Center(
+            child: Text(
+              'Loading ads...',
+              style: TextStyle(
+                color: Colors.white70,
+                fontSize: 12.sp,
+              ),
             ),
           ),
-        ),
-      );
-    }
+        );
+      },
+    );
   }
 }
-
-

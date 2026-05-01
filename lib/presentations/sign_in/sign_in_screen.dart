@@ -16,6 +16,7 @@ import 'package:inkbattle_frontend/utils/preferences/local_preferences.dart';
 import 'package:inkbattle_frontend/utils/lang.dart';
 import 'package:inkbattle_frontend/widgets/video_reward_dialog.dart';
 import 'package:inkbattle_frontend/repositories/user_repository.dart';
+import 'package:inkbattle_frontend/services/native_log_service.dart';
 
 class SignInScreen extends StatefulWidget {
   const SignInScreen({super.key});
@@ -25,6 +26,7 @@ class SignInScreen extends StatefulWidget {
 }
 
 class _SignInScreenState extends State<SignInScreen> {
+  static const String _logTag = 'SignInScreen';
   final GoogleAuthService _googleAuthService = GoogleAuthService();
   final AppleAuthService _appleAuthService = AppleAuthService();
   final FacebookAuthService _facebookAuthService = FacebookAuthService();
@@ -34,6 +36,11 @@ class _SignInScreenState extends State<SignInScreen> {
   bool _isFacebookLoading = false;
 
   Future<void> _signInWithGoogle() async {
+    NativeLogService.log(
+      '_signInWithGoogle -> _isGoogleLoading: $_isGoogleLoading, _isFacebookLoading: $_isFacebookLoading',
+      tag: _logTag,
+      level: 'debug',
+    );
     if (_isGoogleLoading || _isFacebookLoading) {
       return; // Prevent multiple simultaneous sign-ins
     }
@@ -46,6 +53,11 @@ class _SignInScreenState extends State<SignInScreen> {
       if (authResponse != null &&
           authResponse.token != null &&
           authResponse.token!.isNotEmpty) {
+        NativeLogService.log(
+          'Google sign-in successful, token saved: ${authResponse.token}',
+          tag: _logTag,
+          level: 'debug',
+        );
         // Save token and navigate to home
         await LocalStorageUtils.saveUserDetails(authResponse.token!);
         print('Google sign-in successful, token saved');
@@ -105,6 +117,11 @@ class _SignInScreenState extends State<SignInScreen> {
       if (authResponse != null &&
           authResponse.token != null &&
           authResponse.token!.isNotEmpty) {
+        NativeLogService.log(
+          'Apple sign-in successful, token saved: ${authResponse.token}',
+          tag: _logTag,
+          level: 'debug',
+        );
         await LocalStorageUtils.saveUserDetails(authResponse.token!);
         print('Apple sign-in successful, token saved');
 
@@ -202,6 +219,11 @@ class _SignInScreenState extends State<SignInScreen> {
       if (authResponse != null &&
           authResponse.token != null &&
           authResponse.token!.isNotEmpty) {
+        NativeLogService.log(
+          'Facebook sign-in successful, token saved: ${authResponse.token}',
+          tag: _logTag,
+          level: 'debug',
+        );
         // Save token and navigate to home
         await LocalStorageUtils.saveUserDetails(authResponse.token!);
         print('Facebook sign-in successful, token saved');

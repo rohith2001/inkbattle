@@ -6,9 +6,11 @@ import 'package:inkbattle_frontend/utils/api/api_manager.dart';
 import 'package:inkbattle_frontend/utils/api/failure.dart';
 import 'package:inkbattle_frontend/utils/preferences/local_preferences.dart';
 import 'package:inkbattle_frontend/services/socket_service.dart';
+import 'package:inkbattle_frontend/services/native_log_service.dart';
 import 'dart:convert';
 
 class UserRepository {
+  static const String _logTag = 'UserRepository';
   final ApiManager _apiManager = ApiManager();
 
   // Google/Facebook Signup
@@ -155,24 +157,38 @@ class UserRepository {
 
   // Logout
   Future<Either<Failure, bool>> logout() async {
+    bool remoteLogoutSucceeded = false;
     try {
       await _apiManager.post(
         ApiEndPoints.logout,
         {},
         isTokenMandatory: true,
       );
-
-      // Clear local storage
+      remoteLogoutSucceeded = true;
+    } on AppException catch (e) {
+      NativeLogService.log(
+        'Logout API failed: ${e.message}. Proceeding with local cleanup.',
+        tag: _logTag,
+        level: 'error',
+      );
+    } catch (e) {
+      NativeLogService.log(
+        'Logout API exception: $e. Proceeding with local cleanup.',
+        tag: _logTag,
+        level: 'error',
+      );
+    } finally {
       await LocalStorageUtils.clear();
       SocketService().disconnect();
       token = "";
-
-      return right(true);
-    } on AppException catch (e) {
-      return left(ApiFailure(message: e.message));
-    } catch (e) {
-      return left(ApiFailure(message: e.toString()));
+      NativeLogService.log(
+        'Local logout cleanup completed. remoteLogoutSucceeded=$remoteLogoutSucceeded',
+        tag: _logTag,
+        level: 'debug',
+      );
     }
+
+    return right(true);
   }
 
   // Add coins
@@ -227,20 +243,43 @@ class UserRepository {
   // Check if user is logged in
   Future<bool> isLoggedIn() async {
     final token = await LocalStorageUtils.fetchToken();
+    NativeLogService.log(
+      'isLoggedIn: $token',
+      tag: _logTag,
+      level: 'debug',
+    );
     return token != null && token.isNotEmpty;
   }
 
   /// Ensures a guest user exists on the server (lazy creation).
   /// If no token but pending guest prefs exist, creates/finds guest and saves token.
   Future<bool> ensureGuest() async {
-    if (await isLoggedIn()) {
-      if (LocalStorageUtils.hasPendingGuest()) {
-        await LocalStorageUtils.clearPendingGuest();
-      }
-      return true;
-    }
     final pending = LocalStorageUtils.getPendingGuest();
-    if (pending == null) return false;
+    if (pending == null) {
+      NativeLogService.log(
+        'ensureGuest skipped: no pending guest payload',
+        tag: _logTag,
+        level: 'debug',
+      );
+      return false;
+    }
+
+    if (await isLoggedIn()) {
+      NativeLogService.log(
+        'ensureGuest detected existing token + pending guest. Switching session to guest.',
+        tag: _logTag,
+        level: 'debug',
+      );
+      await LocalStorageUtils.instance.remove('token');
+      SocketService().disconnect();
+    } else {
+      NativeLogService.log(
+        'ensureGuest starting guest creation (no existing token).',
+        tag: _logTag,
+        level: 'debug',
+      );
+    }
+
     final result = await guestSignup(
       name: pending['name'] ?? 'Guest',
       providerId: pending['localGuestId'],
@@ -248,7 +287,21 @@ class UserRepository {
       language: pending['language'],
       country: pending['country'],
     );
-    return result.fold((_) => false, (_) => true);
+    return result.fold((failure) {
+      NativeLogService.log(
+        'ensureGuest failed: ${failure.message}',
+        tag: _logTag,
+        level: 'error',
+      );
+      return false;
+    }, (_) {
+      NativeLogService.log(
+        'ensureGuest succeeded: guest token stored',
+        tag: _logTag,
+        level: 'debug',
+      );
+      return true;
+    });
   }
 
   // Claim daily login bonus
