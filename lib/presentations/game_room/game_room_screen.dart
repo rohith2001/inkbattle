@@ -476,7 +476,7 @@ class _GameRoomScreenState extends State<GameRoomScreen>
   bool isAnsweredCorrectly = false;
   // Ads
   //
-  RewardedAd? _closeRewardedAd;
+  InterstitialAd? _closeInterstitialAd;
   bool _isLoadingCloseAd = false;
   DateTime? _adLoadTime; // Track when ad was loaded to check expiration
 
@@ -1094,6 +1094,11 @@ class _GameRoomScreenState extends State<GameRoomScreen>
         (user) => _currentUser = user,
       );
 
+      NativeLogService.log(
+        'initializeRoom -> _connectSocket() called',
+        tag: _logTag,
+        level: 'debug',
+      );
       // Connect and join socket early so host is in room when others join (fixes host only seeing self in lobby)
       unawaited(_connectSocket());
 
@@ -1180,9 +1185,9 @@ class _GameRoomScreenState extends State<GameRoomScreen>
             _resetTeamScoreboardAnimation(withSetState: false);
           }
           
-          // Preload close rewarded ad if game is already playing (optimal pattern: load early)
+          // Preload close interstitial ad if game is already playing (optimal pattern: load early)
           if (room.status == 'playing') {
-            _loadCloseRewardedAd();
+            _loadCloseInterstitialAd();
           }
         },
       );
@@ -1515,6 +1520,11 @@ class _GameRoomScreenState extends State<GameRoomScreen>
 
   Future<void> _connectSocket() async {
     final token = await LocalStorageUtils.fetchToken();
+    NativeLogService.log(
+      '_connectSocket -> token: $token',
+      tag: _logTag,
+      level: 'debug',
+    );
     if (token == null || token.isEmpty) return;
 
     if (mounted) {
@@ -1586,6 +1596,11 @@ class _GameRoomScreenState extends State<GameRoomScreen>
       _awaitingSocketUserRetry = false;
     });
     try {
+      NativeLogService.log(
+        'Manual socket retry -> _connectSocket() called',
+        tag: _logTag,
+        level: 'debug',
+      );
       await _connectSocket();
     } finally {
       if (mounted) {
@@ -2991,9 +3006,9 @@ class _GameRoomScreenState extends State<GameRoomScreen>
           _resetTeamScoreboardAnimation();
         }
         
-        // Preload rewarded ad when game starts (optimal pattern: load early, store, use when needed)
+        // Preload interstitial ad when game starts (optimal pattern: load early, store, use when needed)
         // This ensures ad is ready when game ends
-        _loadCloseRewardedAd();
+        _loadCloseInterstitialAd();
       }
     });
 
@@ -4279,13 +4294,13 @@ class _GameRoomScreenState extends State<GameRoomScreen>
     );
   }
 
-  Future<void> _loadCloseRewardedAd() async {
+  Future<void> _loadCloseInterstitialAd() async {
     // Don't load if already loading or if ad exists and is still fresh (loaded within last hour)
     if (_isLoadingCloseAd) return;
     
     // If ad exists and was loaded recently (within last hour), keep it
     // Ads can typically be stored for several hours, but we'll reload if older than 1 hour
-    if (_closeRewardedAd != null && _adLoadTime != null) {
+    if (_closeInterstitialAd != null && _adLoadTime != null) {
       final hoursSinceLoad = DateTime.now().difference(_adLoadTime!).inHours;
       if (hoursSinceLoad < 1) {
         NativeLogService.log(
@@ -4301,8 +4316,8 @@ class _GameRoomScreenState extends State<GameRoomScreen>
           tag: _logTag,
           level: 'debug'
         );
-        _closeRewardedAd?.dispose();
-        _closeRewardedAd = null;
+        _closeInterstitialAd?.dispose();
+        _closeInterstitialAd = null;
         _adLoadTime = null;
       }
     }
@@ -4312,16 +4327,16 @@ class _GameRoomScreenState extends State<GameRoomScreen>
     });
 
     try {
-      await AdService.loadRewardedAd(
+      await AdService.loadInterstitialAd(
         onAdLoaded: (ad) {
           if (mounted) {
             setState(() {
-              _closeRewardedAd = ad;
+              _closeInterstitialAd = ad;
               _adLoadTime = DateTime.now(); // Store load time
               _isLoadingCloseAd = false;
             });
             NativeLogService.log(
-              "Rewarded ad loaded and stored successfully",
+              "Interstitial ad loaded and stored successfully",
               tag: _logTag,
               level: 'debug'
             );
@@ -4329,7 +4344,7 @@ class _GameRoomScreenState extends State<GameRoomScreen>
         },
         onAdFailedToLoad: (error) {
           NativeLogService.log(
-            "Failed to load close rewarded ad: $error",
+            "Failed to load close interstitial ad: $error",
             tag: _logTag,
             level: 'error'
           );
@@ -4342,7 +4357,7 @@ class _GameRoomScreenState extends State<GameRoomScreen>
       );
     } catch (e) {
       NativeLogService.log(
-        "Error loading close rewarded ad: $e",
+        "Error loading close interstitial ad: $e",
         tag: _logTag,
         level: 'error'
       );
@@ -4360,7 +4375,7 @@ class _GameRoomScreenState extends State<GameRoomScreen>
     // Use delayed execution to avoid blocking current flow
     Future.delayed(const Duration(milliseconds: 500), () {
       if (mounted) {
-        _loadCloseRewardedAd();
+        _loadCloseInterstitialAd();
       }
     });
   }
@@ -4476,14 +4491,14 @@ class _GameRoomScreenState extends State<GameRoomScreen>
     }
     
     // If ad is not loaded yet, try to load it
-    if (_closeRewardedAd == null && !_isLoadingCloseAd) {
-      _loadCloseRewardedAd();
+    if (_closeInterstitialAd == null && !_isLoadingCloseAd) {
+      _loadCloseInterstitialAd();
       // Give a small delay for loading state to be set
       await Future.delayed(const Duration(milliseconds: 100));
     }
     
     // Wait for ad to load (with timeout - max 5 seconds)
-    if (_closeRewardedAd == null) {
+    if (_closeInterstitialAd == null) {
       bool shownLoading = false;
       // If currently loading, show a dialog so user knows something is happening
       if (_isLoadingCloseAd && mounted) {
@@ -4502,7 +4517,7 @@ class _GameRoomScreenState extends State<GameRoomScreen>
       
       // Wait for ad to load OR for loading to complete (success or failure) OR timeout
       // Continue waiting if: ad is null AND (loading is in progress OR we haven't timed out)
-      while (_closeRewardedAd == null && waitAttempts < maxWaitAttempts && mounted) {
+      while (_closeInterstitialAd == null && waitAttempts < maxWaitAttempts && mounted) {
         // If loading completed (failed or succeeded), check one more time then break
         if (!_isLoadingCloseAd && waitAttempts > 5) {
           // Give it one more check cycle after loading completes
@@ -4528,7 +4543,7 @@ class _GameRoomScreenState extends State<GameRoomScreen>
     }
 
     // If ad is still null after waiting, proceed without ad
-    if (_closeRewardedAd == null) {
+    if (_closeInterstitialAd == null) {
       if (mounted) {
         if (snackbarThenGoHome != null && snackbarThenGoHome.isNotEmpty) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -4551,8 +4566,8 @@ class _GameRoomScreenState extends State<GameRoomScreen>
     }
 
     try {
-      final ad = _closeRewardedAd!;
-      _closeRewardedAd = null;
+      final ad = _closeInterstitialAd!;
+      _closeInterstitialAd = null;
 
       _isShowingAd = true;
       ad.fullScreenContentCallback = FullScreenContentCallback(
@@ -4633,7 +4648,7 @@ class _GameRoomScreenState extends State<GameRoomScreen>
           }
         },
       );
-      await ad.show(onUserEarnedReward: (ad, reward) {});
+      await ad.show();
       // Fallback: second attempt to reach lobby in case callback didn't run or failed
       if (goToLobbyAfterAd) {
         Future.delayed(const Duration(milliseconds: 900), () {
@@ -4643,7 +4658,7 @@ class _GameRoomScreenState extends State<GameRoomScreen>
     } catch (e) {
       _isShowingAd = false;
       NativeLogService.log(
-        "Error showing close rewarded ad: $e",
+        "Error showing close interstitial ad: $e",
         tag: _logTag,
         level: 'error'
       );
@@ -4793,21 +4808,6 @@ class _GameRoomScreenState extends State<GameRoomScreen>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    if (!_leaveRoomHttpSent && _room != null) {
-      _leaveRoomHttpSent = true;
-      unawaited(
-        _roomRepository.leaveRoom(roomId: widget.roomId).then((result) {
-          result.fold(
-            (f) => NativeLogService.log(
-              'Best-effort leaveRoom on dispose: ${f.message}',
-              tag: _logTag,
-              level: 'debug',
-            ),
-            (_) {},
-          );
-        }),
-      );
-    }
     _pointsAnimationController.dispose();
     _answerController.dispose();
     _chatController.dispose();
@@ -4849,7 +4849,7 @@ class _GameRoomScreenState extends State<GameRoomScreen>
     NativeLogService.log('dispose', tag: _logTag, level: 'debug');
     _joinWatchdogTimer?.cancel();
     // _voiceService.cleanUp();
-    _closeRewardedAd?.dispose();
+    _closeInterstitialAd?.dispose();
     _strokes.dispose();
     _currentStroke.dispose();
     _showGrid.dispose();
@@ -5678,155 +5678,143 @@ class _GameRoomScreenState extends State<GameRoomScreen>
         blueScore += participant.score ?? 0;
       }
     }
-    const int teamScore = 75; // Example score
-    const int targetScore = 100; // Example target
-    const String teamLabel = 'B';
-    const Color teamColor = Colors.orange;
 
-    Widget buildTeamScorePill({required double maxWidth}) {
-      // 1. Calculate the progress ratio (a value between 0.0 and 1.0)
-      const double progressRatio =
-          targetScore > 0 ? teamScore / targetScore : 0.0;
-      // Ensure the width is at least enough to fully contain the badge if score > 0
-      final double badgeWidth = 30.w; // Must match the size in teamBadge
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final maxWidth = constraints.maxWidth;
 
-      // 2. Calculate the required width for the fill color
-      // The total width of the fill should be (progressRatio * maxWidth)
-      // We use max(badgeWidth, ...) to ensure the color fill is at least wide enough for the badge.
-      final double fillWidth = math.max(badgeWidth, progressRatio * maxWidth);
+        return Container(
+          width: double.infinity,
+          padding: EdgeInsets.symmetric(horizontal: 16.w),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SizedBox(height: 12.h),
 
-      return Container(
-        // 1. Outer Pill Container (The background/border)
-        margin: EdgeInsets.symmetric(horizontal: 18.w, vertical: 10.h),
-        height: 50.h, // Fixed height for the pill
-        decoration: BoxDecoration(
-          color: Colors.black.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(30.r),
-          border: Border.all(color: Colors.grey, width: 1.5),
-        ),
-        child: Row(
-          mainAxisAlignment:
-              MainAxisAlignment.spaceBetween, // Distribute children
-          children: [
-            // 2. The Score Fill Container
-            SizedBox(
-              // Use the calculated width for the fill
-              width: fillWidth,
-              child: Container(
-                decoration: BoxDecoration(
-                  color: teamColor,
-                  // Apply rounded corners only on the left side
-                  borderRadius: BorderRadius.horizontal(
-                    left: Radius.circular(30.r),
-                    right: progressRatio == 1.0
-                        ? Radius.circular(30.r)
-                        : Radius.zero,
-                  ),
-                ),
-                // The Row inside the fill container holds the teamBadge
-                child: Row(
-                  // Place the badge right at the start (no padding/space here)
-                  mainAxisAlignment: MainAxisAlignment.start,
-                  children: [
-                    teamBadge(color: teamColor, label: teamLabel, onTap: () {}),
-                    // Add score text or other info here if needed
-                  ],
+              // Animation (responsive size)
+              _AnimationVideo(
+                controller: _intervalVideoController,
+                size: (maxWidth * 0.25).clamp(120.0, 220.0), // responsive
+              ),
+
+              SizedBox(height: 12.h),
+
+              // Title
+              Text(
+                AppLocalizations.interval.toUpperCase(),
+                style: GoogleFonts.fuzzyBubbles(
+                  color: Colors.white,
+                  fontSize: (maxWidth * 0.06).clamp(16.0, 28.0), // responsive font
+                  fontWeight: FontWeight.w700,
                 ),
               ),
-            ),
 
-            // 3. Trophy and Spacer (Visible outside the colored fill)
-            const Spacer(),
-            Image.asset(AppImages.trophy,
-                width: 30.w, height: 30.h), // Adjust size if needed
-            SizedBox(width: 10.w), // Small padding to keep trophy off the edge
-          ],
-        ),
-      );
-    }
+              SizedBox(height: 12.h),
+
+              // Leaderboard (non-team mode)
+              if (!(selectedGameMode == "team_vs_team"))
+                Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 8.w),
+                  child: _buildTopThreeLeaders(_participants),
+                ),
+
+              if (selectedGameMode == "team_vs_team")
+                SizedBox(height: 12.h),
+
+              /// 🔵 Team A Bar
+              if (selectedGameMode == "team_vs_team")
+                _buildResponsiveScoreBar(
+                  context: context,
+                  score: blueScore,
+                  maxScore: _room?.pointsTarget ?? 250,
+                  color: Colors.blue,
+                  label: AppLocalizations.teamA,
+                  maxWidth: maxWidth,
+                ),
+
+              SizedBox(height: 12.h),
+
+              /// 🟠 Team B Bar
+              if (selectedGameMode == "team_vs_team")
+                _buildResponsiveScoreBar(
+                  context: context,
+                  score: orangeScore,
+                  maxScore: _room?.pointsTarget ?? 250,
+                  color: Colors.orange,
+                  label: AppLocalizations.teamB,
+                  maxWidth: maxWidth,
+                ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildResponsiveScoreBar({
+    required BuildContext context,
+    required int score,
+    required int maxScore,
+    required Color color,
+    required String label,
+    required double maxWidth,
+  }) {
+    final progress = maxScore > 0 ? score / maxScore : 0.0;
 
     return Container(
-      width: double.infinity,
-      constraints: BoxConstraints(
-        minWidth: 200.w,
-        minHeight: 100.h,
+      height: 50.h,
+      margin: EdgeInsets.symmetric(vertical: 6.h),
+      decoration: BoxDecoration(
+        color: Colors.black.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(30.r),
+        border: Border.all(color: Colors.grey, width: 1.5),
       ),
-      child: FittedBox(
-        fit: BoxFit.scaleDown,
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-          SizedBox(height: 12.h),
-          _AnimationVideo(
-            controller: _intervalVideoController,
-            size: 160.w,
-          ),
-          SizedBox(height: 12.h),
-          Text(
-            AppLocalizations.interval.toUpperCase(),
-            style: GoogleFonts.fuzzyBubbles(
-              color: Colors.white,
-              fontSize: 26.sp,
-              fontWeight: FontWeight.w700,
+      child: Row(
+        children: [
+          /// ✅ Progress Bar (NO overflow)
+          Expanded(
+            child: Stack(
+              children: [
+                /// Background
+                Container(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(30.r),
+                  ),
+                ),
+
+                /// Fill (responsive)
+                FractionallySizedBox(
+                  widthFactor: progress.clamp(0.0, 1.0),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: color,
+                      borderRadius: BorderRadius.circular(30.r),
+                    ),
+                    child: Row(
+                      children: [
+                        SizedBox(width: 8.w),
+                        teamBadge(
+                          color: color,
+                          label: label,
+                          onTap: () {},
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
-          SizedBox(height: 12.h),
-          if (!(selectedGameMode == "team_vs_team"))
-            Padding(
-                padding: EdgeInsets.symmetric(horizontal: 16.w),
-                child: _buildTopThreeLeaders(_participants)),
-          if (selectedGameMode == "team_vs_team") SizedBox(height: 12.h),
 
-          if (selectedGameMode == "team_vs_team")
-            TeamScoreBar(
-                maxScore: _room?.pointsTarget ?? 250,
-                barColor: Colors.blue,
-                label: AppLocalizations.teamA,
-                labelBgColor: Colors.blue,
-                score: blueScore),
-          SizedBox(height: 12.h),
-          if (selectedGameMode == "team_vs_team")
-            TeamScoreBar(
-                barColor: Colors.orange,
-                label: AppLocalizations.teamB,
-                maxScore: _room?.pointsTarget ?? 250,
-                labelBgColor: Colors.orange,
-                score: orangeScore),
-          // Container(
-          //   padding: EdgeInsets.symmetric(horizontal: 18.w, vertical: 10.h),
-          //   decoration: BoxDecoration(
-          //     color: Colors.white.withOpacity(0.1),
-          //     borderRadius: BorderRadius.circular(30.r),
-          //     border: Border.all(color: const Color(0xFF25F4EE), width: 1.5),
-          //   ),
-          //   child: Row(
-          //     mainAxisSize: MainAxisSize.min,
-          //     children: [
-          //       Icon(Icons.timer, color: Colors.white, size: 22.sp),
-          //       SizedBox(width: 8.w),
-          //       Text(
-          //         '$countdown',
-          //         style: GoogleFonts.lato(
-          //           color: Colors.white,
-          //           fontSize: 20.sp,
-          //           fontWeight: FontWeight.bold,
-          //         ),
-          //       ),
-          //       SizedBox(width: 6.w),
-          //       Text(
-          //         'seconds',
-          //         style: GoogleFonts.lato(
-          //           color: Colors.white70,
-          //           fontSize: 14.sp,
-          //           fontWeight: FontWeight.w500,
-          //         ),
-          //       ),
-          //     ],
-          //   ),
-          // ),
+          /// 🏆 Trophy (always visible)
+          SizedBox(width: 10.w),
+          Image.asset(
+            AppImages.trophy,
+            width: 28.w,
+            height: 28.h,
+          ),
+          SizedBox(width: 10.w),
         ],
-      ),
       ),
     );
   }

@@ -8,6 +8,7 @@ import 'package:inkbattle_frontend/utils/preferences/local_preferences.dart';
 import 'package:mime/mime.dart';
 import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
+import 'package:inkbattle_frontend/services/native_log_service.dart';
 
 import 'api_exceptions.dart';
 import 'error_model.dart';
@@ -18,7 +19,11 @@ String? token = "";
 class ApiManager {
   Future _getToken() async {
     token = await LocalStorageUtils.fetchToken();
-    print("TOKEN:: $token");
+    NativeLogService.log(
+      'ApiManager -> token: $token',
+      tag: 'ApiManager',
+      level: 'debug',
+    );
   }
 
   var httpClient = http.Client();
