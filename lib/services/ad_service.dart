@@ -24,7 +24,7 @@ class AdService {
   static const String iosBannerAdUnitId =
       'ca-app-pub-2111477197639109/6915256150';
   static const String iosInterstitialAdUnitId =
-      'ca-app-pub-2111477197639109/8649028008';
+      'ca-app-pub-2111477197639109/3822969209';
   static const String iosRewardedAdUnitId =
       'ca-app-pub-2111477197639109/8649028008';
   static const String _androidBannerFloorBAdUnitId =
