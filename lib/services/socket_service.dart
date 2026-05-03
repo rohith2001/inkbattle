@@ -277,6 +277,13 @@ class SocketService {
     _socket?.on('room_participants', callback);
   }
 
+  void ackRoomParticipants({required int roomId, required int version}) {
+    _socket?.emit('room_participants_ack', {
+      'roomId': roomId,
+      'version': version,
+    });
+  }
+
   void onUserBannedFromGame(Function(dynamic) callback) {
     _socket?.on('user_banned_from_room', callback);
   }

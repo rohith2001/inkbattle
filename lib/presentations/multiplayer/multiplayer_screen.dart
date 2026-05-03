@@ -115,7 +115,7 @@ class _MultiplayerScreenState extends State<MultiplayerScreen> {
         selectedCategories = [];
       });
       // Now allFilled is false; user must select fields to fetch rooms
-      _loadRooms();
+      // _loadRooms();
     }
   }
 
@@ -156,6 +156,15 @@ class _MultiplayerScreenState extends State<MultiplayerScreen> {
             'Failed to load rooms: ${failure.message}',
             name: _logTag,
           );
+          if (mounted) {
+            setState(() {
+              _rooms = [];
+            });
+
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Failed to load rooms')),
+            );
+          }
         },
         (roomListResponse) {
           if (mounted) {
@@ -184,6 +193,15 @@ class _MultiplayerScreenState extends State<MultiplayerScreen> {
         name: _logTag,
         error: e,
       );
+      if (mounted) {
+        setState(() {
+          _rooms = [];
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Something went wrong')),
+        );
+      }
     } finally {
       if (mounted) {
         setState(() {
@@ -390,12 +408,13 @@ class _MultiplayerScreenState extends State<MultiplayerScreen> {
                             setState(() {
                               selectedLanguage = val;
                               selectedScript = 'default';
+                              _rooms = [];
                             });
                             developer.log(
                               'Selected language: $selectedLanguage',
                               name: _logTag,
                             );
-                            _loadRooms();
+                            // _loadRooms();
                           },
                           hintText: AppLocalizations.language,
                           iconColor: Colors.lightBlueAccent,
@@ -421,12 +440,15 @@ class _MultiplayerScreenState extends State<MultiplayerScreen> {
                                 value: selectedScript,
                                 items: scripts,
                                 onChanged: (val) {
-                                  setState(() => selectedScript = val);
+                                  setState(() {
+                                    selectedScript = val;
+                                    _rooms = [];
+                                  });
                                   developer.log(
                                     'Selected script: $selectedScript',
                                     name: _logTag,
                                   );
-                                  _loadRooms();
+                                  // _loadRooms();
                                 },
                                 hintText: AppLocalizations.script,
                                 iconColor: Colors.deepPurpleAccent,
@@ -449,12 +471,15 @@ class _MultiplayerScreenState extends State<MultiplayerScreen> {
                         child: CountryPickerWidget(
                           selectedCountryCode: selectedCountry,
                           onCountrySelected: (countryCode) {
-                            setState(() => selectedCountry = countryCode);
+                            setState(() {
+                              selectedCountry = countryCode;
+                              _rooms = [];
+                            });
                             developer.log(
                               'Selected country code: $selectedCountry',
                               name: _logTag,
                             );
-                            _loadRooms();
+                            // _loadRooms();
                           },
                           hintText: AppLocalizations.country,
                           height: isTablet ? 65.0 : 45.h, // Explicit height to match other fields
@@ -470,12 +495,15 @@ class _MultiplayerScreenState extends State<MultiplayerScreen> {
                           value: selectedPoints,
                           items: points,
                           onChanged: (val) {
-                            setState(() => selectedPoints = val);
+                            setState(() {
+                              selectedPoints = val;
+                              _rooms = [];
+                            });
                             developer.log(
                               'Selected points: $selectedPoints',
                               name: _logTag,
                             );
-                            _loadRooms();
+                            // _loadRooms();
                           },
                           hintText: AppLocalizations.points,
                           iconColor: Colors.amber,
@@ -503,12 +531,13 @@ class _MultiplayerScreenState extends State<MultiplayerScreen> {
                           onChanged: (val) {
                             setState(() {
                               selectedCategories = val;
+                              _rooms = [];
                             });
                             developer.log(
                               'Selected categories: $selectedCategories',
                               name: _logTag,
                             );
-                            _loadRooms();
+                            // _loadRooms();
                           },
                           hintText: AppLocalizations.category,
                           iconColor: Colors.orange,
@@ -529,17 +558,19 @@ class _MultiplayerScreenState extends State<MultiplayerScreen> {
                             if (val == AppLocalizations.team) {
                               setState(() {
                                 selectedGameMode = "team_vs_team";
+                                _rooms = [];
                               });
                             } else if (val == AppLocalizations.individual) {
                               setState(() {
                                 selectedGameMode = "1v1";
+                                _rooms = [];
                               });
                             }
                             developer.log(
                               'Selected game mode: $selectedGameMode',
                               name: _logTag,
                             );
-                            _loadRooms();
+                            // _loadRooms();
                           },
                           hintText: AppLocalizations.mode,
                           items: [
@@ -552,6 +583,41 @@ class _MultiplayerScreenState extends State<MultiplayerScreen> {
                         ),
                       ),
                     ],
+                  ),
+                ),
+
+                SizedBox(height: isTablet ? 16.0 : 12.h),
+
+                Padding(
+                  padding: EdgeInsets.symmetric(horizontal: isTablet ? 24.0 : 16.w),
+                  child: SizedBox(
+                    width: double.infinity,
+                    height: isTablet ? 60 : 48.h,
+                    child: ElevatedButton(
+                      onPressed: allFilled && !_isLoading
+                          ? () async {
+                              setState(() {
+                                _rooms = []; // clear old results
+                              });
+                              await _loadRooms();
+                            }
+                          : null,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.blueAccent,
+                        disabledBackgroundColor: Colors.grey.withOpacity(0.3),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(30.r),
+                        ),
+                      ),
+                      child: Text(
+                        "Search Rooms",
+                        style: TextStyle(
+                          fontSize: isTablet ? 20 : 14.sp,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
                   ),
                 ),
 
@@ -608,10 +674,12 @@ class _MultiplayerScreenState extends State<MultiplayerScreen> {
                             : _rooms.isEmpty
                                 ? Center(
                                     child: Text(
-                                      AppLocalizations.noRoomsAvailable,
+                                      _isLoading
+                                        ? ""
+                                        : "No rooms found. Try different filters",
                                       style: TextStyle(
                                         color: Colors.white60,
-                          fontSize: isTablet ? 24.0 : 16.sp, // Increased no rooms text size
+                                        fontSize: isTablet ? 24.0 : 16.sp,
                                       ),
                                     ),
                                   )
@@ -871,69 +939,6 @@ class _MultiplayerScreenState extends State<MultiplayerScreen> {
     );
   }
 
-  // Mapping the old filter pill calls to the new generic pill
-  Widget _buildLanguagePill() => _buildGradientDropdown(
-        icon: Icons.language,
-        value: selectedLanguage,
-        items: languages,
-        onChanged: (val) {
-          setState(() => selectedLanguage = val);
-          _loadRooms();
-        },
-        hintText: AppLocalizations.language,
-        iconColor: Colors.lightBlueAccent,
-      );
-
-  Widget _buildScriptPill() => _buildGradientDropdown(
-        icon: Icons.image,
-        value: selectedScript,
-        items: scripts,
-        onChanged: (val) {
-          setState(() => selectedScript = val);
-          _loadRooms();
-        },
-        hintText: AppLocalizations.script,
-        iconColor: Colors.deepPurpleAccent,
-      );
-
-  Widget _buildPointsPill() => _buildGradientDropdown(
-        icon: Icons.star,
-        value: selectedPoints,
-        items: points,
-        onChanged: (val) {
-          setState(() => selectedPoints = val);
-          _loadRooms();
-        },
-        hintText: AppLocalizations.points,
-        iconColor: Colors.amber,
-      );
-
-  Widget _buildCountryPill() => _buildGradientDropdown(
-        icon: Icons.public,
-        value: selectedCountry,
-        items: const <String>[], // Countries are now handled via CountryPickerWidget
-        onChanged: (val) {
-          setState(() => selectedCountry = val);
-          _loadRooms();
-        },
-        hintText: AppLocalizations.country,
-        iconColor: Colors.lightGreenAccent,
-      );
-
-  Widget _buildCategoryPill() => _buildGradientDropdown(
-        icon: Icons.category,
-        value: selectedCategories.isEmpty ? null : selectedCategories.join(", "),
-        items: categories,
-        onChanged: (val) {
-          setState(() {
-            selectedCategories = val != null ? [val] : [];
-          });
-          _loadRooms();
-        },
-        hintText: AppLocalizations.category,
-        iconColor: Colors.orange,
-      );
-
   // --- Existing logic (kept for completeness) ---
 
   Widget _buildRoomCard(RoomModel room, {bool isTablet = false}) {
@@ -1157,7 +1162,8 @@ class _MultiplayerScreenState extends State<MultiplayerScreen> {
       selectedScript != null &&
       // selectedCountry != null && // Country is optional
       selectedPoints != null &&
-      selectedCategories.isNotEmpty;
+      selectedCategories.isNotEmpty &&
+      selectedGameMode != null;
 
   /// Delimiter for encoding multiple categories in route path (must match routes.dart parsing).
   static const String _categoriesPathDelimiter = ',';

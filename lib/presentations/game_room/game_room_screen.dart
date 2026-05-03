@@ -439,6 +439,8 @@ class _GameRoomScreenState extends State<GameRoomScreen>
   int _joinRetryCount = 0; // exponential backoff attempts for join_room ack errors
   Timer? _joinWatchdogTimer; // watchdog: room_joined must arrive within timeout after a successful ack
   GameConnectionState _connectionState = GameConnectionState.syncing; // ready only after room_joined (blocks actions during reconnect window)
+  int _lastParticipantsVersion = -1;
+  bool _isReloadingLobbyParticipants = false;
 
   /// Full-screen overlay until [GameConnectionState.ready]: first wait uses [_kInitialSocketConnectWait], then optional Retry (no HTTP create).
   bool _socketBootstrapActive = false;
@@ -1085,6 +1087,86 @@ class _GameRoomScreenState extends State<GameRoomScreen>
   late AnimationController _pointsAnimationController;
   late Animation<double> _pointsOffsetAnimation;
   late Animation<double> _pointsOpacityAnimation;
+
+  Future<void> _reloadLobbyParticipants() async {
+    if (!mounted || _isReloadingLobbyParticipants) return;
+    if (_room == null) return;
+    if (!(_room!.status == 'lobby' || _room!.status == 'waiting')) return;
+
+    setState(() => _isReloadingLobbyParticipants = true);
+    try {
+      final roomResult = await _roomRepository
+          .getRoomDetails(roomId: widget.roomId)
+          .timeout(const Duration(seconds: 6));
+      if (!mounted) return;
+
+      roomResult.fold(
+        (failure) {
+          NativeLogService.log(
+            'reloadLobbyParticipants -> failure: ${failure.message}',
+            tag: _logTag,
+            level: 'error',
+          );
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(failure.message)),
+          );
+        },
+        (room) {
+          final fetchedParticipants = List<RoomParticipant>.from(room.participants ?? const []);
+          final bool lobbyLike = room.status == 'lobby' || room.status == 'waiting';
+
+          if (lobbyLike) {
+            // Preserve previously known team only when backend payload omits it.
+            for (final p in fetchedParticipants) {
+              if (p.team == null || p.team!.isEmpty) {
+                try {
+                  final prev = _participants.firstWhere(
+                    (e) => e.userId == p.userId || e.user?.id == p.user?.id,
+                  );
+                  if (prev.team == 'blue' || prev.team == 'orange') {
+                    p.team = prev.team;
+                  }
+                } catch (_) {}
+              }
+            }
+          }
+          NativeLogService.log(
+            'reloadLobbyParticipants -> success, fetchedParticipants: ${fetchedParticipants.length}',
+            tag: _logTag,
+            level: 'debug',
+          );
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Reloaded players list successfully')),
+          );
+          setState(() {
+            _room = room;
+            _participants = fetchedParticipants;
+            _waitingForPlayers = lobbyLike;
+          });
+        },
+      );
+    } catch (e, stackTrace) {
+      if (!mounted) return;
+        NativeLogService.log(
+          'reloadLobbyParticipants -> error: $e',
+          tag: _logTag,
+          level: 'error',
+        );
+
+        NativeLogService.log(
+          'stackTrace: $stackTrace',
+          tag: _logTag,
+          level: 'error',
+        );
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Failed to refresh players list')),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isReloadingLobbyParticipants = false);
+      }
+    }
+  }
 
   Future<void> _initializeRoom() async {
     try {
@@ -1857,6 +1939,20 @@ class _GameRoomScreenState extends State<GameRoomScreen>
 
     _socketService.onRoomParticipants((data) {
       if (!mounted) return;
+      final int incomingVersion = data is Map && data['version'] != null
+          ? int.tryParse(data['version'].toString()) ?? -1
+          : -1;
+      final int? roomIdForAck = _room?.id;
+      if (roomIdForAck != null && incomingVersion >= 0) {
+        _socketService.ackRoomParticipants(
+          roomId: roomIdForAck,
+          version: incomingVersion,
+        );
+      }
+      // Ignore stale or duplicate participant snapshots.
+      if (incomingVersion >= 0 && incomingVersion <= _lastParticipantsVersion) {
+        return;
+      }
       final participantsData = data['participants'] as List?;
       // Always update participants list when we receive room_participants (host and others get live updates)
       final newParticipants = (participantsData != null && participantsData.isNotEmpty)
@@ -1878,6 +1974,9 @@ class _GameRoomScreenState extends State<GameRoomScreen>
           }
         }
         _participants = newParticipants;
+        if (incomingVersion >= 0) {
+          _lastParticipantsVersion = incomingVersion;
+        }
 
         // Keep _currentParticipant in sync (normalize IDs to avoid int vs String mismatches).
         // This also drives the lobby ready button UI.
@@ -6509,30 +6608,32 @@ class _GameRoomScreenState extends State<GameRoomScreen>
                         borderRadius: BorderRadius.circular(16.r),
                         border: Border.all(width: 2, color: Colors.blue),
                       ),
-                      child: _participants.isEmpty
-                          ? Center(
-                              child: Padding(
-                                padding: EdgeInsets.symmetric(vertical: 40.h),
-                                child: Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Image.asset(
-                                      AppImages.waiting,
-                                      height: 90.h,
-                                      width: 90.w,
+                      child: Stack(
+                        children: [
+                          _participants.isEmpty
+                              ? Center(
+                                  child: Padding(
+                                    padding: EdgeInsets.symmetric(vertical: 40.h),
+                                    child: Column(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        Image.asset(
+                                          AppImages.waiting,
+                                          height: 90.h,
+                                          width: 90.w,
+                                        ),
+                                        SizedBox(height: 10.h),
+                                        _buildWaitingText()
+                                      ],
                                     ),
-                                    SizedBox(height: 10.h),
-                                    _buildWaitingText()
-                                  ], 
-                                ),
-                              ),
-                            )
-                          : Padding(
-                              padding: EdgeInsets.symmetric(
-                                  horizontal: 16.w, vertical: 12.h),
-                              child: ListView.builder(
-                                itemCount: _participants.length,
-                                itemBuilder: (context, index) {
+                                  ),
+                                )
+                              : Padding(
+                                  padding: EdgeInsets.symmetric(
+                                      horizontal: 16.w, vertical: 12.h),
+                                  child: ListView.builder(
+                                    itemCount: _participants.length,
+                                    itemBuilder: (context, index) {
                                   final participant = _participants[index];
                                   final userName =
                                       participant.user?.name ?? 'Guest';
@@ -6560,10 +6661,10 @@ class _GameRoomScreenState extends State<GameRoomScreen>
                                   final isSpeaking = voiceEnabled &&
                                       _speakingUserIds.contains(userId);
 
-                                  return Padding(
-                                    padding: EdgeInsets.only(bottom: 16.h),
-                                    child: Row(
-                                      children: [
+                                      return Padding(
+                                        padding: EdgeInsets.only(bottom: 16.h),
+                                        child: Row(
+                                          children: [
                                         // Avatar with conditional border and speaking indicator
                                         Stack(
                                           children: [
@@ -6919,12 +7020,41 @@ class _GameRoomScreenState extends State<GameRoomScreen>
                                               );
                                             },
                                           ),
-                                      ],
-                                    ),
-                                  );
-                                },
+                                          ],
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                ),
+                          Positioned(
+                            top: 6.h,
+                            right: 6.w,
+                            child: Material(
+                              color: Colors.transparent,
+                              child: IconButton(
+                                tooltip: 'Reload players',
+                                onPressed: _isReloadingLobbyParticipants
+                                    ? null
+                                    : _reloadLobbyParticipants,
+                                icon: _isReloadingLobbyParticipants
+                                    ? SizedBox(
+                                        width: 16.w,
+                                        height: 16.h,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2.w,
+                                          color: Colors.white,
+                                        ),
+                                      )
+                                    : Icon(
+                                        Icons.refresh,
+                                        color: Colors.white,
+                                        size: 20.r,
+                                      ),
                               ),
                             ),
+                          ),
+                        ],
+                      ),
                       ),
                     ),
                     ),
